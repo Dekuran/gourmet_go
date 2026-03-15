@@ -1,17 +1,20 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 /// Manages all game audio: background music, SFX, and runtime TTS voice.
+///
+/// Music and SFX use [FlameAudio] static API (asset-based).
+/// Voice/TTS uses a raw [AudioPlayer] for byte-based playback since
+/// FlameAudio's static methods only support named asset sources.
 class GameAudioService {
   static final GameAudioService _instance = GameAudioService._();
   factory GameAudioService() => _instance;
   GameAudioService._();
 
-  final _musicPlayer = AudioPlayer();
-  final _sfxPlayer = AudioPlayer();
+  // AudioPlayer from flame_audio re-export — needed for byte-based TTS
   final _voicePlayer = AudioPlayer();
 
   bool _muted = false;
@@ -25,9 +28,8 @@ class GameAudioService {
   Future<void> playMapMusic() async {
     if (_muted) return;
     try {
-      await _musicPlayer.stop();
-      await _musicPlayer.play(AssetSource('audio/music_map.mp3'));
-      await _musicPlayer.setReleaseMode(ReleaseMode.loop);
+      await FlameAudio.bgm.stop();
+      await FlameAudio.bgm.play('music_map.mp3');
     } catch (e) {
       print('GameAudio: map music not available ($e)');
     }
@@ -36,20 +38,19 @@ class GameAudioService {
   Future<void> playShopMusic() async {
     if (_muted) return;
     try {
-      await _musicPlayer.stop();
-      await _musicPlayer.play(AssetSource('audio/music_shop.mp3'));
-      await _musicPlayer.setReleaseMode(ReleaseMode.loop);
+      await FlameAudio.bgm.stop();
+      await FlameAudio.bgm.play('music_shop.mp3');
     } catch (e) {
       print('GameAudio: shop music not available ($e)');
     }
   }
 
-  Future<void> stopMusic() => _musicPlayer.stop();
+  Future<void> stopMusic() => FlameAudio.bgm.stop();
 
   Future<void> playSfx(GameSfx sfx) async {
     if (_muted) return;
     try {
-      await _sfxPlayer.play(AssetSource('audio/${sfx.filename}'));
+      await FlameAudio.play(sfx.filename);
     } catch (_) {}
   }
 

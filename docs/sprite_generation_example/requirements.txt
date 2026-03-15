@@ -1,0 +1,6 @@
+# Sprite generation core dependencies
+# Bootstrapped automatically by generate_sprites.py into an isolated venv.
+# You do NOT need to install these manually.
+google-genai>=1.0.0
+Pillow>=10.0.0
+requests>=2.31.0

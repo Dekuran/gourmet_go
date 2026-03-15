@@ -4,7 +4,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:video_player/video_player.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:flame_audio/flame_audio.dart';
 import '../models/recipe.dart';
 import '../deprecated/models/line_cook.dart';
 import '../deprecated/models/customer.dart';
