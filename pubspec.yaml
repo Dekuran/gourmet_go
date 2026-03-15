@@ -55,6 +55,7 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/images/sprites/
     - assets/models/
     - assets/audio/
     - assets/videos/
