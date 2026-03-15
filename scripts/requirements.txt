@@ -1,0 +1,5 @@
+# Sprite generation dependencies
+# Bootstrapped automatically into an isolated venv — no manual install needed.
+google-genai>=1.0.0
+Pillow>=10.0.0
+requests>=2.31.0
