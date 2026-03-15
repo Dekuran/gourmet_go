@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flame/components.dart';
 
+import '../../models/dish.dart';
+import '../../providers/game_providers.dart';
 import '../gourmet_go_game.dart';
 import '../components/chef/chef_entity.dart';
 import '../components/customer/customer_queue_component.dart';
@@ -44,6 +46,14 @@ class ShopWorld extends World {
   @override
   void onMount() {
     super.onMount();
+    // Seed menu with starter bowls so customers always have dishes to order.
+    final menu = game.ref.read(menuProvider);
+    if (menu.isEmpty) {
+      final notifier = game.ref.read(menuProvider.notifier);
+      for (final dish in Dish.starterBowls) {
+        notifier.addDish(dish);
+      }
+    }
     game.showHud();
   }
 

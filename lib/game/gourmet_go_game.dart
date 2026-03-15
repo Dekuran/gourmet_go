@@ -5,6 +5,8 @@ import 'package:flame/components.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:flutter/material.dart';
 
+import 'worlds/map_world.dart';
+
 /// All overlay identifiers used by the Flame [GameWidget].
 ///
 /// Each overlay maps to a Flutter widget builder registered in
@@ -75,10 +77,8 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
       name: 'gourmet_go.game',
     );
 
-    // Start with a placeholder world; FTUE or map scene will
-    // replace this once services are initialised in main.dart.
-    world = _SplashWorld();
-    currentScene = 'splash';
+    world = MapWorld(game: this);
+    currentScene = 'map';
   }
 
   // ─── Scene management ───
@@ -138,16 +138,3 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
       overlays.isActive(overlay.name);
 }
 
-/// Minimal placeholder world shown during app boot.
-///
-/// Displays nothing — the real scene is swapped in once
-/// async services finish initialisation.
-class _SplashWorld extends World {
-  @override
-  Future<void> onLoad() async {
-    developer.log(
-      'SplashWorld loaded (waiting for scene switch)',
-      name: 'gourmet_go.game',
-    );
-  }
-}
