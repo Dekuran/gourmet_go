@@ -1,28 +1,45 @@
 import 'skill_level.dart';
 
-/// Profile for the single chef (Ken).
+/// A chef in the player's restaurant.
 ///
-/// Ken starts at [SkillLevel.trained] (45s per bowl) and can be
-/// upgraded up to [SkillLevel.master] (12s per bowl).
+/// For the prototype, there is a single chef (Ken) who starts
+/// at [SkillLevel.trained] and can be upgraded to [SkillLevel.master].
+///
+/// See [flame_implementation.md §Data Models](../../docs/flame_implementation.md).
 class ChefProfile {
-  final String name;
-  final SkillLevel skillLevel;
-
-  const ChefProfile({
+  ChefProfile({
     required this.name,
-    required this.skillLevel,
+    this.skill = SkillLevel.trained,
   });
 
-  int get cookTimeSeconds => skillLevel.cookTimeSeconds;
+  /// Chef display name.
+  final String name;
 
-  ChefProfile copyWith({String? name, SkillLevel? skillLevel}) =>
-      ChefProfile(
-        name: name ?? this.name,
-        skillLevel: skillLevel ?? this.skillLevel,
-      );
+  /// Current skill level — determines cook time.
+  final SkillLevel skill;
 
-  static const ChefProfile ken = ChefProfile(
-    name: 'Ken',
-    skillLevel: SkillLevel.trained,
-  );
+  /// Cook time in seconds for this chef's current skill.
+  int get cookTimeSeconds => skill.cookTimeSeconds;
+
+  /// Returns a copy with the skill upgraded to the next level.
+  /// Returns unchanged if already at max.
+  ChefProfile upgraded() {
+    final next = skill.next;
+    if (next == null) return this;
+    return ChefProfile(name: name, skill: next);
+  }
+
+  /// Returns a copy with the given fields replaced.
+  ChefProfile copyWith({
+    String? name,
+    SkillLevel? skill,
+  }) {
+    return ChefProfile(
+      name: name ?? this.name,
+      skill: skill ?? this.skill,
+    );
+  }
+
+  @override
+  String toString() => 'ChefProfile($name, ${skill.label})';
 }

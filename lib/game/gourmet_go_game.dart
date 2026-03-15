@@ -1,0 +1,153 @@
+import 'dart:developer' as developer;
+
+import 'package:flame/game.dart';
+import 'package:flame/components.dart';
+import 'package:flame_riverpod/flame_riverpod.dart';
+import 'package:flutter/material.dart';
+
+/// All overlay identifiers used by the Flame [GameWidget].
+///
+/// Each overlay maps to a Flutter widget builder registered in
+/// [RiverpodAwareGameWidget.overlayBuilderMap] inside `main.dart`.
+enum GameOverlay {
+  /// FTUE sous-chef dialogue panel.
+  ftue,
+
+  /// Camera capture screen (photo → recognition).
+  camera,
+
+  /// Dish card reveal with 3D model.
+  dishReveal,
+
+  /// Menu board grid + 3D viewer.
+  menuBoard,
+
+  /// Heads-up display: cash, day, star rating.
+  hud,
+
+  /// Starter bowl picker (FTUE fallback when camera unavailable).
+  starterPicker,
+
+  /// Map region info bottom sheet.
+  mapInfo,
+
+  /// Day summary + star rating overlay.
+  daySummary,
+
+  /// Chef upgrade overlay.
+  upgrade,
+
+  /// Sous chef contextual commentary bubble.
+  sousChefBubble,
+
+  /// API test dashboard — preserved from pre-Flame build.
+  apiTest,
+}
+
+/// Root-level Flame game for Gourmet GO.
+///
+/// Uses [RiverpodGameMixin] so that Flame components can access
+/// Riverpod providers via [RiverpodComponentMixin.ref]. The game
+/// manages scene transitions via [World] swapping and Flutter
+/// overlay toggling for UI-heavy panels (camera, menus, dialogue).
+///
+/// Must be used with [RiverpodAwareGameWidget] in `main.dart`.
+class GourmetGoGame extends FlameGame with RiverpodGameMixin {
+  GourmetGoGame()
+      : super(
+          camera: CameraComponent.withFixedResolution(
+            width: 390,
+            height: 844,
+          ),
+        );
+
+  /// Current scene name, for debugging / analytics.
+  String currentScene = 'none';
+
+  @override
+  Color backgroundColor() => const Color(0xFF0F0F1A);
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    developer.log(
+      'GourmetGoGame loaded — viewport 390×844, Riverpod bridged',
+      name: 'gourmet_go.game',
+    );
+
+    // Start with a placeholder world; FTUE or map scene will
+    // replace this once services are initialised in main.dart.
+    world = _SplashWorld();
+    currentScene = 'splash';
+  }
+
+  // ─── Scene management ───
+
+  /// Replace the current [World] with a new scene component.
+  ///
+  /// Removes all active overlays first to prevent stale UI.
+  void switchScene(Component newWorld, String sceneName) {
+    overlays.clear();
+    world = newWorld as World;
+    currentScene = sceneName;
+    developer.log(
+      'Scene → $sceneName',
+      name: 'gourmet_go.game',
+    );
+  }
+
+  // ─── Region info ───
+
+  /// Region ID passed to the [GameOverlay.mapInfo] overlay.
+  String? pendingRegionId;
+
+  // ─── Convenience overlay helpers ───
+
+  void showHud() => showOverlay(GameOverlay.hud);
+  void hideHud() => hideOverlay(GameOverlay.hud);
+
+  void openCamera() => showOverlay(GameOverlay.camera);
+  void closeCamera() => hideOverlay(GameOverlay.camera);
+
+  void showMapInfo(String regionId) {
+    pendingRegionId = regionId;
+    showOverlay(GameOverlay.mapInfo);
+  }
+
+  void closeMapInfo() => hideOverlay(GameOverlay.mapInfo);
+
+  void showDaySummary() {
+    hideHud();
+    showOverlay(GameOverlay.daySummary);
+  }
+
+  // ─── Overlay helpers ───
+
+  /// Show a named overlay (type-safe via [GameOverlay] enum).
+  void showOverlay(GameOverlay overlay) {
+    overlays.add(overlay.name);
+  }
+
+  /// Hide a named overlay.
+  void hideOverlay(GameOverlay overlay) {
+    overlays.remove(overlay.name);
+  }
+
+  /// Whether an overlay is currently visible.
+  bool isOverlayActive(GameOverlay overlay) =>
+      overlays.isActive(overlay.name);
+}
+
+/// Minimal placeholder world shown during app boot.
+///
+/// Displays nothing — the real scene is swapped in once
+/// async services finish initialisation.
+class _SplashWorld extends World {
+  @override
+  Future<void> onLoad() async {
+    developer.log(
+      'SplashWorld loaded (waiting for scene switch)',
+      name: 'gourmet_go.game',
+    );
+  }
+}

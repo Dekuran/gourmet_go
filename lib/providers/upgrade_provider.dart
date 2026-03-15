@@ -8,7 +8,7 @@ import 'chef_provider.dart';
 final canUpgradeProvider = Provider<bool>((ref) {
   final chef = ref.watch(chefProvider);
   final cash = ref.watch(cashProvider);
-  final next = chef.skillLevel.next;
+  final next = chef.skill.next;
   if (next == null) return false;
   return cash >= next.upgradeCost;
 });
@@ -18,7 +18,7 @@ final nextUpgradeInfoProvider =
     Provider<({String label, int cost, SkillLevel level})?>(
   (ref) {
     final chef = ref.watch(chefProvider);
-    final next = chef.skillLevel.next;
+    final next = chef.skill.next;
     if (next == null) return null;
     return (label: next.label, cost: next.upgradeCost, level: next);
   },

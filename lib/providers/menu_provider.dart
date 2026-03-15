@@ -23,11 +23,6 @@ class MenuNotifier extends Notifier<List<Dish>> {
     ];
   }
 
-  /// Seed with starter bowls when menu is empty.
-  void seedStarterBowls() {
-    if (state.isNotEmpty) return;
-    state = List.of(Dish.starterBowls);
-  }
 }
 
 final menuProvider = NotifierProvider<MenuNotifier, List<Dish>>(

@@ -386,7 +386,7 @@ packages:
     source: hosted
     version: "1.0.0"
   flame_lint:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: flame_lint
       sha256: "4f10178ed149f9b83c8dfbbe085dc3238bff495127fac4acb37b9ae425ec5582"
@@ -418,7 +418,7 @@ packages:
     source: hosted
     version: "1.12.0"
   flame_test:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: flame_test
       sha256: "649a35ae741d6adf9062a17d06f08d322f0a167432bd1d8b41cf718088fe783a"
@@ -454,6 +454,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.2.1"
+  flutter_hooks:
+    dependency: transitive
+    description:
+      name: flutter_hooks
+      sha256: "8ae1f090e5f4ef5cfa6670ce1ab5dddadd33f3533a7f9ba19d9f958aa2a89f42"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.21.3+1"
   flutter_inappwebview:
     dependency: transitive
     description:
@@ -592,6 +600,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
+  hooks_riverpod:
+    dependency: "direct main"
+    description:
+      name: hooks_riverpod
+      sha256: "08527ec06aaef75e4b78694e045ef0cd8346594eaf9cc18b0f866398b07b93b1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.3.1"
   html:
     dependency: transitive
     description:
@@ -953,7 +969,7 @@ packages:
     source: hosted
     version: "1.0.0-dev.9"
   riverpod_lint:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: riverpod_lint
       sha256: "64e8debf5b719a37d48b9785dd595d34133fdcd84b8fd07157a621c54ab2156f"
@@ -1262,7 +1278,7 @@ packages:
     source: hosted
     version: "2.2.0"
   very_good_analysis:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: very_good_analysis
       sha256: d1cb1d66a5aae2c702d68caca6c8347306d35e728fd94555fa21fa0448a972e0
