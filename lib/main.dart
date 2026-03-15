@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/api_test_screen.dart';
+import 'screens/map_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,9 +31,10 @@ class GourmetGoApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      initialRoute: '/test',
+      initialRoute: '/map',
       routes: {
         '/': (context) => const HomeScreen(),
+        '/map': (context) => const MapScreen(),
         '/test': (context) => const ApiTestScreen(),
       },
     );
