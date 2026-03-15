@@ -1,12 +1,12 @@
 # 🍜 Gourmet Go
 
+**SF GenAI GameJam 2026** — An AI-native Japanese ramen discovery game built with Flutter.
+
 *Every journey starts with a single bowl.*
 
 Build your ramen empire from a tiny eatery to a bustling restaurant! Snap every bowl you eat across Japan to unlock authentic regional styles, level up your chefs, and serve hungry customers in this dreamy isometric sim.
 
-**SF GenAI GameJam 2026** — An AI-native Japanese ramen discovery game built with Flutter.
-
-Snap a photo of ramen, and AI identifies the dish, narrates its story, generates ingredient images, creates a cooking video, and builds a 3D model — all in real-time.
+Snap a photo of ramen and AI identifies the dish, narrates its story, generates ingredient images, creates a cooking video, and builds a 3D model — all in real-time.
 
 ---
 
@@ -18,7 +18,7 @@ Snap a photo of ramen, and AI identifies the dish, narrates its story, generates
 | **Stack/Engine** | Flutter / Flame |
 | **Game Type** | Simulation |
 | **Age Rating** | 3+ |
-| **Art Style** | Isometric game art — vibrant flat colours, bold outlines, modern indie aesthetic |
+| **Art Style** | Dreamy anime-inspired isometric pixel art — flat pastel colours, bold outlines, modern indie aesthetic |
 
 ---
 
