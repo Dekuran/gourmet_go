@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import '../models/dish.dart';
 import '../models/recipe.dart';
+import 'debug_logger.dart';
 
 class GuideService {
   static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
@@ -42,11 +44,37 @@ No markdown, no backticks, no preamble. Raw JSON only matching this exact schema
 IMPORTANT: Exactly 3 ingredients. Exactly 3 steps. Each step must have a seedance_prompt describing a cinematic food video of that cooking action.
 Use only these flavor tags: fermented|regional|fish|pork|rich|delicate|street_food|umami|pressed|smoky|crispy|rare|photogenic|comfort|seasonal''';
 
+  /// Prompt that asks Claude to return structured identification JSON
+  /// matching the [Dish.fromIdentification] factory fields.
+  ///
+  /// Used by [identifyDishStructured] for the FTUE pipeline where
+  /// we need `confidence_0_to_1` for branching logic (retry if < 0.6).
+  static const String _structuredIdentifyTrigger = '''
+Identify this dish and return ONLY valid JSON. No markdown, no backticks, no preamble.
+Return a single JSON object matching this exact schema:
+{
+  "variety_id": "lowercase_snake_case id e.g. hakata_tonkotsu",
+  "ramen_name": "display name e.g. Hakata Tonkotsu Ramen",
+  "regional_style": "regional style e.g. Hakata-style",
+  "broth_base": "one of: tonkotsu, shoyu, miso, shio, other",
+  "rarity_tier": 1,
+  "regional_lore": "1-2 sentences about where this dish comes from and what makes it special",
+  "confidence_0_to_1": 0.92
+}
+Rules:
+- variety_id: lowercase snake_case, region + style e.g. "sapporo_miso", "hakata_tonkotsu"
+- rarity_tier: 1 (common everyday ramen), 2 (regional specialty), 3 (rare artisan), 4 (legendary)
+- confidence_0_to_1: your honest confidence this is actually a Japanese ramen dish (0.0 to 1.0). If it's clearly ramen, ≥ 0.8. If uncertain or not ramen at all, < 0.5.
+- broth_base: the primary broth type. Use "other" only if truly unclassifiable.
+- regional_lore: speak as The Master — warm, theatrical, 1-2 sentences max.''';
+
   static const List<String> _validTags = [
     'fermented', 'regional', 'fish', 'pork', 'rich', 'delicate',
     'street_food', 'umami', 'pressed', 'smoky', 'crispy', 'rare',
     'photogenic', 'comfort', 'seasonal',
   ];
+
+  static final _log = DebugLogger.instance;
 
   final List<Map<String, dynamic>> _messages = [];
   String? _base64Image;
@@ -82,7 +110,10 @@ Use only these flavor tags: fermented|regional|fish|pork|rich|delicate|street_fo
   }
 
   /// Sends image as base64 + text prompt to Claude.
-  /// Returns The Master's opening line about the dish.
+  /// Returns The Master's opening line about the dish (theatrical prose).
+  ///
+  /// For structured data suitable for creating a [Dish], use
+  /// [identifyDishStructured] instead.
   Future<String> identifyDish(Uint8List imageBytes) async {
     _base64Image = base64Encode(imageBytes);
     final mediaType = _detectMediaType(imageBytes);
@@ -114,7 +145,127 @@ Use only these flavor tags: fermented|regional|fish|pork|rich|delicate|street_fo
       'content': responseText,
     });
 
+    _log.logSuccess('GuideService', 'identifyDish', 'Prose response received (${responseText.length} chars)');
+
     return responseText;
+  }
+
+  /// Sends image to Claude and returns structured JSON for dish identification.
+  ///
+  /// The returned map matches the [Dish.fromIdentification] factory:
+  /// ```json
+  /// {
+  ///   "variety_id": "hakata_tonkotsu",
+  ///   "ramen_name": "Hakata Tonkotsu Ramen",
+  ///   "regional_style": "Hakata-style",
+  ///   "broth_base": "tonkotsu",
+  ///   "rarity_tier": 2,
+  ///   "regional_lore": "Born in the yatai stalls of Fukuoka...",
+  ///   "confidence_0_to_1": 0.92
+  /// }
+  /// ```
+  ///
+  /// The `confidence_0_to_1` field drives FTUE branching:
+  /// - `>= 0.6` → dish accepted, proceed to reveal
+  /// - `< 0.6` → retry branch, offer starter bowls
+  ///
+  /// Throws on network error. Returns a low-confidence fallback map
+  /// if Claude's response cannot be parsed as valid JSON.
+  Future<Map<String, dynamic>> identifyDishStructured(
+    Uint8List imageBytes,
+  ) async {
+    final base64Image = base64Encode(imageBytes);
+    final mediaType = _detectMediaType(imageBytes);
+
+    // Single-turn call — no conversation history needed.
+    final messages = <Map<String, dynamic>>[
+      {
+        'role': 'user',
+        'content': [
+          {
+            'type': 'image',
+            'source': {
+              'type': 'base64',
+              'media_type': mediaType,
+              'data': base64Image,
+            },
+          },
+          {
+            'type': 'text',
+            'text': _structuredIdentifyTrigger,
+          },
+        ],
+      },
+    ];
+
+    final body = jsonEncode({
+      'model': _model,
+      'max_tokens': 512,
+      'system': _systemPrompt,
+      'messages': messages,
+    });
+
+    final response = await http.post(
+      Uri.parse(_apiUrl),
+      headers: _headers,
+      body: body,
+    );
+
+    if (response.statusCode != 200) {
+      _log.logError(
+        'GuideService',
+        'identifyDishStructured',
+        'Claude API error ${response.statusCode}',
+      );
+      throw Exception(
+        'Claude API error ${response.statusCode}: ${response.body}',
+      );
+    }
+
+    final data = jsonDecode(response.body);
+    final content = data['content'] as List;
+    if (content.isEmpty) {
+      _log.logError(
+        'GuideService',
+        'identifyDishStructured',
+        'Empty response from Claude',
+      );
+      throw Exception('Empty response from Claude');
+    }
+
+    final responseText = content[0]['text'] as String;
+    final parsed = _parseStructuredIdentification(responseText);
+
+    final confidence = parsed['confidence_0_to_1'] as num? ?? 0.0;
+    final name = parsed['ramen_name'] as String? ?? 'Unknown';
+    _log.logSuccess(
+      'GuideService',
+      'identifyDishStructured',
+      '$name (confidence: $confidence)',
+    );
+
+    return parsed;
+  }
+
+  /// Convenience wrapper that calls [identifyDishStructured] and returns
+  /// a [Dish] instance via [Dish.fromIdentification].
+  ///
+  /// On any error, returns a fallback [Dish] with confidence 0.0.
+  Future<Dish> identifyAsDish(Uint8List imageBytes) async {
+    try {
+      final json = await identifyDishStructured(imageBytes);
+      return Dish.fromIdentification(json);
+    } catch (e) {
+      _log.logError('GuideService', 'identifyAsDish', '$e');
+      return Dish(
+        varietyId: 'unknown',
+        name: 'Unknown Ramen',
+        regionalStyle: '',
+        brothBase: '',
+        rarityTier: 1,
+        confidence: 0.0,
+      );
+    }
   }
 
   /// Appends player message to history, calls Claude, returns response.
@@ -158,6 +309,55 @@ Use only these flavor tags: fermented|regional|fish|pork|rich|delicate|street_fo
   void reset() {
     _messages.clear();
     _base64Image = null;
+    _log.logInfo('GuideService', 'Conversation reset');
+  }
+
+  /// Attempts to parse structured identification JSON from Claude's response.
+  ///
+  /// Falls back to a low-confidence placeholder if parsing fails.
+  Map<String, dynamic> _parseStructuredIdentification(String responseText) {
+    try {
+      final parsed = jsonDecode(responseText) as Map<String, dynamic>;
+      return _validateIdentification(parsed);
+    } catch (_) {
+      // Claude may have wrapped JSON in markdown or added preamble.
+      final match = RegExp(r'\{.*\}', dotAll: true).firstMatch(responseText);
+      if (match != null) {
+        try {
+          final parsed = jsonDecode(match.group(0)!) as Map<String, dynamic>;
+          return _validateIdentification(parsed);
+        } catch (_) {}
+      }
+      _log.logError(
+        'GuideService',
+        '_parseStructuredIdentification',
+        'Failed to parse: ${responseText.substring(0, responseText.length.clamp(0, 120))}',
+      );
+      // Return a low-confidence fallback so the FTUE can trigger retry branch.
+      return <String, dynamic>{
+        'variety_id': 'unknown',
+        'ramen_name': 'Unknown Ramen',
+        'regional_style': '',
+        'broth_base': 'other',
+        'rarity_tier': 1,
+        'regional_lore': '',
+        'confidence_0_to_1': 0.0,
+      };
+    }
+  }
+
+  /// Ensures required fields exist with sensible defaults.
+  Map<String, dynamic> _validateIdentification(Map<String, dynamic> json) {
+    return <String, dynamic>{
+      'variety_id': json['variety_id'] as String? ?? 'unknown',
+      'ramen_name': json['ramen_name'] as String? ?? 'Unknown Ramen',
+      'regional_style': json['regional_style'] as String? ?? '',
+      'broth_base': json['broth_base'] as String? ?? 'other',
+      'rarity_tier': json['rarity_tier'] as int? ?? 1,
+      'regional_lore': json['regional_lore'] as String? ?? '',
+      'confidence_0_to_1':
+          (json['confidence_0_to_1'] as num?)?.toDouble() ?? 0.0,
+    };
   }
 
   Recipe _parseRecipe(String responseText) {
