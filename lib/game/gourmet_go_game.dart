@@ -5,7 +5,9 @@ import 'package:flame/components.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:flutter/material.dart';
 
-import 'worlds/map_world.dart';
+import '../services/ftue_service.dart';
+import 'scenes/ftue_scene.dart';
+import 'scenes/map_scene.dart';
 
 /// All overlay identifiers used by the Flame [GameWidget].
 ///
@@ -77,8 +79,20 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
       name: 'gourmet_go.game',
     );
 
-    world = MapWorld(game: this);
-    currentScene = 'map';
+    // Check FTUE state and start the appropriate scene.
+    final ftueComplete = await FtueService.instance.isComplete();
+
+    if (ftueComplete) {
+      // Returning player → go straight to map.
+      developer.log('FTUE complete — starting MapScene', name: 'gourmet_go.game');
+      world = MapScene();
+      currentScene = 'map';
+    } else {
+      // First launch → start FTUE (dark kitchen + sous chef dialogue).
+      developer.log('First launch — starting FtueScene', name: 'gourmet_go.game');
+      world = FtueScene();
+      currentScene = 'ftue';
+    }
   }
 
   // ─── Scene management ───

@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'game/gourmet_go_game.dart';
 import 'overlays/camera_overlay.dart';
 import 'overlays/day_summary_overlay.dart';
+import 'overlays/dish_reveal_overlay.dart';
+import 'overlays/ftue_dialogue_overlay.dart';
 import 'overlays/hud_overlay.dart';
 import 'overlays/map_info_overlay.dart';
 import 'overlays/upgrade_overlay.dart';
@@ -96,7 +98,7 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
         overlayBuilderMap: {
           // ── FTUE ──
           GameOverlay.ftue.name: (context, game) =>
-              _placeholder('FTUE Dialogue'),
+              FtueDialogueOverlay(game: game),
           GameOverlay.sousChefBubble.name: (context, game) =>
               _placeholder('Sous Chef Bubble'),
 
@@ -104,7 +106,7 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
           GameOverlay.camera.name: (context, game) =>
               CameraOverlay(game: game),
           GameOverlay.dishReveal.name: (context, game) =>
-              _placeholder('Dish Reveal'),
+              DishRevealOverlay(game: game),
           GameOverlay.starterPicker.name: (context, game) =>
               _placeholder('Starter Picker'),
 
