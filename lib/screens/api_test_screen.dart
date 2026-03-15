@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:image_picker/image_picker.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audioplayers/audioplayers.dart';
 import '../models/recipe.dart';
@@ -17,6 +16,7 @@ import '../services/customer_service.dart';
 import '../services/review_service.dart';
 import '../services/elevenlabs_service.dart';
 import '../services/gemini_image_service.dart';
+import '../services/debug_logger.dart';
 
 class ApiTestScreen extends StatefulWidget {
   const ApiTestScreen({super.key});
@@ -35,6 +35,7 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
   final ReviewService _reviewService = ReviewService();
   final ElevenLabsService _elevenLabsService = ElevenLabsService();
   final GeminiImageService _geminiImageService = GeminiImageService();
+  final DebugLogger _log = DebugLogger.instance;
 
   // Image
   Uint8List? _selectedImageBytes;
@@ -157,8 +158,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
     try {
       final result = await _guideService.identifyDish(_selectedImageBytes!);
+      _log.logSuccess('GuideService', 'identifyDish', result.substring(0, result.length.clamp(0, 120)));
       setState(() => _identifyResult = result);
     } catch (e) {
+      _log.logError('GuideService', 'identifyDish', e.toString());
       setState(() => _identifyError = e.toString());
     } finally {
       setState(() => _identifyLoading = false);
@@ -175,8 +178,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
     try {
       final result = await _guideService.chat(msg);
+      _log.logSuccess('GuideService', 'chat', result.substring(0, result.length.clamp(0, 120)));
       setState(() => _chatResult = result);
     } catch (e) {
+      _log.logError('GuideService', 'chat', e.toString());
       setState(() => _chatError = e.toString());
     } finally {
       setState(() => _chatLoading = false);
@@ -191,8 +196,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
     try {
       final result = await _guideService.generateRecipe();
+      _log.logSuccess('GuideService', 'generateRecipe', '${result.dishName} (${result.steps.length} steps)');
       setState(() => _recipeResult = result);
     } catch (e) {
+      _log.logError('GuideService', 'generateRecipe', e.toString());
       setState(() => _recipeError = e.toString());
     } finally {
       setState(() => _recipeLoading = false);
@@ -210,8 +217,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
       _tripoStatus = 'Starting mock poll...';
     });
 
+    _log.logInfo('TripoService', 'Starting mock poll for mock_masuzushi');
     _tripoService.startPollingInBackground('mock_masuzushi', (url) {
       if (mounted) {
+        _log.logSuccess('TripoService', 'tripoMock', 'GLB URL: $url');
         setState(() {
           _tripoGlbUrl = url;
           _tripoStatus = 'Complete!';
@@ -235,20 +244,38 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
     try {
       final taskId = await _tripoService.startGeneration(_selectedImageBytes!);
+      _log.logSuccess('TripoService', 'startGeneration', 'Task ID: $taskId');
       setState(() {
         _tripoTaskId = taskId;
         _tripoStatus = 'Polling task $taskId...';
       });
       _tripoService.startPollingInBackground(taskId, (url) {
         if (mounted) {
+          _log.logSuccess('TripoService', 'tripoLive', 'GLB URL: $url');
           setState(() {
             _tripoGlbUrl = url;
             _tripoStatus = 'Complete!';
             _tripoLiveLoading = false;
           });
         }
+      }, onError: (err) {
+        if (mounted) {
+          _log.logError('TripoService', 'tripoLive polling', err);
+          setState(() {
+            _tripoError = err;
+            _tripoStatus = 'Failed';
+            _tripoLiveLoading = false;
+          });
+        }
+      }, onStatus: (status) {
+        if (mounted) {
+          setState(() {
+            _tripoStatus = '⏳ $status';
+          });
+        }
       });
     } catch (e) {
+      _log.logError('TripoService', 'tripoLive', e.toString());
       setState(() {
         _tripoError = e.toString();
         _tripoLiveLoading = false;
@@ -383,8 +410,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     });
     try {
       final result = await _lineCookService.generateChef();
+      _log.logSuccess('LineCookService', 'generateChef', '${result.name} — ${result.specialtyRegions.join(", ")}');
       setState(() => _chefResult = result);
     } catch (e) {
+      _log.logError('LineCookService', 'generateChef', e.toString());
       setState(() => _chefError = e.toString());
     } finally {
       setState(() => _chefLoading = false);
@@ -403,8 +432,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
       // Use fixture recipe as current menu
       final fixtureMenu = [Recipe.fixture()];
       final result = await _customerService.generateQueue(fixtureMenu);
+      _log.logSuccess('CustomerService', 'generateQueue', '${result.length} customers generated');
       setState(() => _customerResult = result);
     } catch (e) {
+      _log.logError('CustomerService', 'generateQueue', e.toString());
       setState(() => _customerError = e.toString());
     } finally {
       setState(() => _customerLoading = false);
@@ -426,8 +457,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
         'Fukuoka',
         0.9,
       );
+      _log.logSuccess('ReviewService', 'getReview(high)', result.substring(0, result.length.clamp(0, 80)));
       setState(() => _reviewHighResult = result);
     } catch (e) {
+      _log.logError('ReviewService', 'getReview(high)', e.toString());
       setState(() => _reviewHighError = e.toString());
     } finally {
       setState(() => _reviewHighLoading = false);
@@ -447,8 +480,10 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
         'Fukuoka',
         0.2,
       );
+      _log.logSuccess('ReviewService', 'getReview(low)', result.substring(0, result.length.clamp(0, 80)));
       setState(() => _reviewLowResult = result);
     } catch (e) {
+      _log.logError('ReviewService', 'getReview(low)', e.toString());
       setState(() => _reviewLowError = e.toString());
     } finally {
       setState(() => _reviewLowLoading = false);
@@ -473,16 +508,19 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
     try {
       final bytes = await _elevenLabsService.generateSpeech(text);
       if (bytes != null) {
+        _log.logSuccess('ElevenLabs', 'generateSpeech', '${bytes.length} bytes');
         setState(() {
           _ttsAudioBytes = bytes;
           _ttsResult = 'Generated ${bytes.length} bytes of audio';
         });
       } else {
+        _log.logError('ElevenLabs', 'generateSpeech', 'returned null');
         setState(() {
           _ttsError = 'ElevenLabs returned null — check API key';
         });
       }
     } catch (e) {
+      _log.logError('ElevenLabs', 'generateSpeech', e.toString());
       setState(() => _ttsError = e.toString());
     } finally {
       setState(() => _ttsLoading = false);
@@ -521,17 +559,20 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
         maxCount: 3,
       );
       if (images.isEmpty) {
+        _log.logError('GeminiImage', 'generateIngredientImages', 'empty result');
         setState(() {
           _geminiError = 'No images generated — Gemini may not support image '
               'generation on this model. Check API key and model.';
         });
       } else {
+        _log.logSuccess('GeminiImage', 'generateIngredientImages', '${images.length} images');
         setState(() {
           _geminiImages = images;
           _geminiResult = 'Generated ${images.length} ingredient images';
         });
       }
     } catch (e) {
+      _log.logError('GeminiImage', 'generateIngredientImages', e.toString());
       setState(() => _geminiError = e.toString());
     } finally {
       setState(() => _geminiLoading = false);
@@ -566,6 +607,8 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
             _buildSection4(),
             const Divider(height: 40, thickness: 2),
             _buildSection5(),
+            const Divider(height: 40, thickness: 2),
+            _buildLogSection(),
             const SizedBox(height: 40),
           ],
         ),
@@ -772,11 +815,8 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
           const SizedBox(height: 8),
           SizedBox(
             height: 300,
-            child: ModelViewer(
-              src: _resolveAssetUrl(_tripoGlbUrl!),
-              alt: '3D food model',
-              autoRotate: true,
-              cameraControls: true,
+            child: Flutter3DViewer(
+              src: _tripoGlbUrl!,
             ),
           ),
         ],
@@ -1086,18 +1126,70 @@ class _ApiTestScreenState extends State<ApiTestScreen> {
   }
 
 
-  /// Resolve relative asset paths to absolute URLs for web.
-  /// model_viewer_plus renders inside an iframe (srcdoc), so relative paths
-  /// like "assets/models/foo.glb" resolve against about:srcdoc, not the
-  /// Flutter web server root. This converts them to absolute URLs.
-  String _resolveAssetUrl(String path) {
-    if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    if (kIsWeb) {
-      final base = Uri.base.toString();
-      final baseNoTrailing = base.endsWith("/") ? base : "$base/";
-      return "$baseNoTrailing$path";
-    }
-    return path;
+
+  // ─── Log Section ───
+
+  Widget _buildLogSection() {
+    final entries = _log.entries;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '📋 Debug Log',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              onPressed: () async {
+                await _log.copyToClipboard();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Copied ${entries.length} log entries to clipboard'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy, size: 16),
+              label: Text('Copy All (${entries.length})'),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() => _log.clear());
+              },
+              icon: const Icon(Icons.delete_outline, size: 16),
+              label: const Text('Clear'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (entries.isEmpty)
+          const Text('No log entries yet. Run some tests!',
+              style: TextStyle(color: Colors.grey)),
+        if (entries.isNotEmpty)
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 300),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey.withAlpha(20),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.grey.withAlpha(60)),
+            ),
+            child: SingleChildScrollView(
+              reverse: true, // auto-scroll to newest
+              child: SelectableText(
+                entries.join('\n'),
+                style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   // ─── Shared widgets ───
