@@ -4,9 +4,14 @@
 
 Build the First-Time User Experience from the [restaurant_sim_prototype.md](../gourmet_go/docs/restaurant_sim_prototype.md) Section 4, plus the supporting screens and API integrations needed for the full FTUE-to-service flow. The FTUE is the tutorial — no separate onboarding, no popups. The entire premise is established through the sous chef's voice in ~90 seconds.
 
+> **Related docs** (on `chore/set-up-game-context`, now merged):
+> - [`docs/flame_implementation.md`](../gourmet_go/docs/flame_implementation.md) — Full Flame architecture, component tree, 10-phase build, data models, providers
+> - [`docs/sprite_generation_plan.md`](../gourmet_go/docs/sprite_generation_plan.md) — 42 sprites + 3 sheets, charcoal BG, batch generation by phase
+> - [`docs/todo.md`](../gourmet_go/docs/todo.md) — Tiered build TODO (Tier 0 = Flame migration, Tier 1–3 = features)
+
 ### Architecture Decision: Flame Game Engine
 
-The project has the full Flame ecosystem in [`pubspec.yaml`](../gourmet_go/pubspec.yaml) — `flame`, `flame_audio`, `flame_riverpod`, `flame_tiled`, `flame_rive`, `flame_svg`, `flame_behaviors`, `flame_forge2d`, `flame_jenny`, `flame_splash_screen`.
+The project uses a trimmed Flame ecosystem in [`pubspec.yaml`](../gourmet_go/pubspec.yaml) — `flame`, `flame_audio`, `flame_riverpod`, `flame_svg`, `flame_behaviors`, `flame_jenny`, `flame_splash_screen`. Removed: `flame_tiled`, `flame_forge2d`, `flame_rive` (not needed for this prototype).
 
 **The existing Flutter widget screens were prototypes. They will be replaced with a Flame-based game.**
 
@@ -82,24 +87,25 @@ Japan map pulses → First customer arrives → Service begins
 
 ## Current State Analysis
 
-### What Exists
+### What Exists (Post Phase 0)
 
 | Component | Status | File |
 |-----------|--------|------|
-| Map screen | ✅ Working | `screens/map_screen.dart` |
-| Ramen shop screen | ✅ Working | `screens/ramen_shop_screen.dart` |
-| Visual novel dialogue screen | ✅ Working | `screens/visual_novel_screen.dart` |
-| Camera screen | ✅ Working | `screens/camera_screen.dart` |
-| GuideService - Claude dish ID | ✅ Working | `services/guide_service.dart` |
-| GameAssetService - Gemini sprites | ✅ Working | `services/game_asset_service.dart` |
-| GameAudioService - SFX + TTS | ✅ Working | `services/game_audio_service.dart` |
-| SeedanceService - video gen | ✅ Working | `services/seedance_service.dart` |
-| ElevenLabsService - narration TTS | ✅ Working | `services/elevenlabs_service.dart` |
+| **GourmetGoGame** (FlameGame) | ✅ Created | `lib/game/gourmet_go_game.dart` |
+| **main.dart** — GameWidget + ProviderScope | ✅ Rewritten | `lib/main.dart` |
+| Old screens | ✅ Moved to deprecated | `lib/deprecated/screens/` |
+| GuideService — Claude dish ID | ✅ Working | `services/guide_service.dart` |
+| GameAssetService — Gemini sprites | ✅ Working | `services/game_asset_service.dart` |
+| GameAudioService — SFX + TTS | ✅ Working | `services/game_audio_service.dart` |
+| SeedanceService — video gen | ✅ Working | `services/seedance_service.dart` |
+| ElevenLabsService — narration TTS | ✅ Working | `services/elevenlabs_service.dart` |
 | Region model | ✅ Working | `models/region.dart` |
 | Recipe model | ✅ Working | `models/recipe.dart` |
+| ApiTestScreen | ✅ Preserved | `screens/api_test_screen.dart` |
 | Sprite generation pipeline | ✅ Reference exists | `docs/sprite_generation_example/` |
+| Sprite generation plan | ✅ New | `docs/sprite_generation_plan.md` |
+| Flame implementation plan | ✅ New | `docs/flame_implementation.md` |
 | Dish model | ❌ Stub only | `models/dish.dart` |
-| Reveal screen | ❌ Stub only | `screens/reveal_screen.dart` |
 | FTUE screen | ❌ Does not exist | — |
 | FTUE state tracking | ❌ Does not exist | — |
 | Sous chef character assets | ❌ Generated at runtime only | — |
@@ -125,6 +131,40 @@ Japan map pulses → First customer arrives → Service begins
 
 ---
 
+## Phase 0 — Flame Migration *(DONE)*
+
+> Corresponds to [Tier 0 in `docs/todo.md`](../gourmet_go/docs/todo.md) and
+> [Phases 1–3 of `docs/flame_implementation.md`](../gourmet_go/docs/flame_implementation.md).
+
+### 0A. GourmetGoGame + main.dart ✅
+
+- [x] Created [`lib/game/gourmet_go_game.dart`](../gourmet_go/lib/game/gourmet_go_game.dart) — `FlameGame` subclass with `CameraComponent.withFixedResolution(390, 844)`, `GameOverlay` enum, world-swapping via `switchScene()`, overlay helpers
+- [x] Rewrote [`lib/main.dart`](../gourmet_go/lib/main.dart) — `ProviderScope` → `MaterialApp` (theme) → `GameWidget` with overlay builders for all `GameOverlay` values. Debug FAB toggles `ApiTestScreen`
+- [x] Background color: `#0F0F1A` (dark navy, matches charcoal theme)
+
+### 0B. pubspec.yaml Cleanup ✅
+
+- [x] Removed `flame_tiled`, `flame_forge2d`, `flame_rive` (upstream did this)
+- [x] Moved `flame_test`, `flame_lint`, `riverpod_lint`, `very_good_analysis` to `dev_dependencies`
+- [x] Added `shared_preferences: ^2.2.0`, `flutter_riverpod: ^3.3.1`, `hooks_riverpod: ^3.0.0`
+- [x] `flutter pub get` clean
+
+### 0C. Old Screens Deprecated ✅
+
+- [x] Moved all old widget screens to `lib/deprecated/screens/`
+- [x] Preserved `ApiTestScreen` at `lib/screens/api_test_screen.dart`
+- [x] Added `analyzer: exclude: - lib/deprecated/**` to [`analysis_options.yaml`](../gourmet_go/analysis_options.yaml)
+
+### 0D. Remaining (Next Steps)
+
+- [ ] Upgrade `GourmetGoGame` to use `RiverpodGameMixin` (per `flame_implementation.md`)
+- [ ] Switch `GameWidget` to `RiverpodAwareGameWidget` (per `flame_implementation.md`)
+- [ ] Create Riverpod providers: `cashProvider`, `chefProvider`, `gameStateProvider`, `menuProvider`, `ftueProvider`, `regionProvider`
+- [ ] Implement `Dish` model per API contract (Tier 0 task)
+- [ ] Update `GuideService.identifyDish()` to return structured JSON (Tier 0 task)
+
+---
+
 ## Phase 1 — Asset Generation (Pre-Build)
 
 These run offline via scripts before Flutter code changes.
@@ -140,8 +180,22 @@ Create `gourmet_go/scripts/generate_ftue_sprites.py` modelled on the existing [`
 | `sous_chef_portrait` | Bust portrait for visual novel dialogue — warm, wise, older character | No - new character | Dreamy anime-inspired, bold outlines, flat pastel colours |
 | `sous_chef_sprite` | Full body sprite for map/shop walking | Yes - from portrait | Same style |
 | `dark_kitchen_bg` | Dimly lit ramen kitchen interior, moody, atmospheric | No | Isometric, warm shadows, modern indie |
+| `kitchen_bg_tier1` | Run-down family shop kitchen (starting tier) | No | Isometric pixel art, warm but worn |
+| `kitchen_bg_tier2` | Clean neighbourhood spot kitchen | No | Isometric pixel art, brighter, tidier |
+| `kitchen_bg_tier3` | Popular local eatery kitchen | No | Isometric pixel art, bustling, warm |
+| `kitchen_bg_tier4` | Destination ramen bar kitchen | No | Isometric pixel art, premium, polished |
+| `kitchen_bg_tier5` | Legendary ramen institution kitchen | No | Isometric pixel art, grand, iconic |
+| `chef_ken_idle` | Starter chef Ken — standing idle at station, toque + apron | No | Same art style, Kanto shoyu vibe |
+| `chef_ken_cooking` | Ken stirring pot, focused expression | Yes - from idle | Same style |
+| `chef_ken_plating` | Ken placing toppings on bowl | Yes - from idle | Same style |
+| `chef_ken_rest` | Ken wiping brow, brief break pose | Yes - from idle | Same style |
 | `dish_card_frame` | Card frame/border with rarity colour variants | No | UI element, clean, flat |
 | `ramen_bowl_icon_generic` | Generic steaming ramen bowl icon for first dish card | No | Icon style, warm colours |
+| `ramen_bowl_icon_kanto` | Tokyo shoyu ramen bowl — clear brown broth | No | Icon style, region-specific |
+| `ramen_bowl_icon_hokkaido` | Sapporo miso ramen bowl — rich amber broth | No | Icon style, region-specific |
+| `ramen_bowl_icon_tohoku` | Kitakata ramen bowl — wavy noodles, clear broth | No | Icon style, region-specific |
+| `ramen_bowl_icon_kyushu` | Hakata tonkotsu — milky white broth | No | Icon style, region-specific |
+| `customer_placeholder` | Generic customer silhouette (fallback while LLM generates) | No | Simple, clean |
 
 **Art style override** per README: *"Dreamy anime-inspired isometric pixel art — flat pastel colours, bold outlines, modern indie aesthetic"*
 
@@ -159,18 +213,34 @@ Add to `generate_audio.sh` or create `generate_ftue_audio.sh`:
 | Asset | Type | Prompt |
 |-------|------|--------|
 | `music_ftue_intro.mp3` | Music | Gentle emotional piano and strings, slow build, nostalgic and warm, Japanese restaurant story opening |
+| `music_kitchen.mp3` | Music | Warm busy kitchen background music, gentle upbeat tempo, simmering pots and soft percussion, loopable, cozy Japanese restaurant service day feel |
 | `sfx_kitchen_ambience.mp3` | SFX | Quiet empty kitchen ambience, distant simmering pot, gentle fan hum, peaceful |
 | `sfx_dish_card_reveal.mp3` | SFX | Magical sparkling reveal sound, ascending chimes, achievement unlocked, warm |
 | `sfx_map_pulse.mp3` | SFX | Soft pulsing glow sound, map region lighting up, ethereal |
 | `sfx_customer_arrive.mp3` | SFX | Restaurant door bell, cheerful short jingle, customer entering |
+| `sfx_order_placed.mp3` | SFX | Paper ticket stamp sound, quick crisp, order placed on rail, restaurant service |
+| `sfx_bowl_served.mp3` | SFX | Ceramic bowl placed on counter with gentle clink, served dish, satisfying |
+| `sfx_cash_ding.mp3` | SFX | Cash register ding, money earned, cheerful coin sound, short |
+| `sfx_day_end.mp3` | SFX | End of day wind-down, kitchen fans slowing, gentle closing chime, reflective |
+| `sfx_upgrade_purchase.mp3` | SFX | Upgrade purchased sparkle sound, level up, improvement jingle, positive |
+| `sfx_star_rating.mp3` | SFX | Star rating reveal, ascending bell tones per star, building anticipation |
 
-### 1C. Seedance Intro Video
+### 1C. Seedance / ByteDance Video Clips
 
-Use [`SeedanceService`](../gourmet_go/lib/services/seedance_service.dart) to pre-generate a 2-3s intro clip:
+Use [`SeedanceService`](../gourmet_go/lib/services/seedance_service.dart) to pre-generate all video clips. **All are pre-baked to `assets/videos/` — never generated at runtime.**
 
-**Prompt**: *"A dimly lit Japanese ramen kitchen slowly illuminating, warm golden light spreading across wooden counters and hanging lanterns, steam rising gently, cinematic, dreamy anime aesthetic"*
+| Clip | Duration | Prompt | Trigger | Source |
+|------|----------|--------|---------|--------|
+| `ftue_intro.mp4` | 2-3s | A dimly lit Japanese ramen kitchen slowly illuminating, warm golden light spreading across wooden counters and hanging lanterns, steam rising gently, cinematic, dreamy anime aesthetic | App first launch (ByteDance §11.4) | ByteDance |
+| `day_start_doors.mp4` | 1-2s | Kitchen doors swinging open, morning light flooding in, wooden counter and stools, warm inviting ramen restaurant, cinematic | Day start transition (ByteDance §11.4) | ByteDance |
+| `seedoms_happy_common.mp4` | 2-3s | Happy customer smiling at ramen bowl, warm lighting, cozy restaurant, upbeat mood, anime style | 3-star bowl served (Common) (Seedoms §11.3) | Seedoms |
+| `seedoms_emotional_rare.mp4` | 2-3s | Customer visibly moved tasting ramen, emotional reaction, soft light, intimate moment, cinematic | 3-star bowl served (Rare/Legendary) (Seedoms §11.3) | Seedoms |
+| `seedoms_signature.mp4` | 3-4s | Montage of multiple customers enjoying same bowl of ramen, busy happy restaurant, warm anime style | Signature bowl unlocked (Seedoms §11.3) | Seedoms |
+| `seedoms_perfect_day.mp4` | 2-3s | Restaurant exterior, full queue forming outside, golden hour light, bustling neighbourhood, anime pixel art | Perfect day (5-star rating) (Seedoms §11.3) | Seedoms |
+| `seedoms_region_common.mp4` | 1-2s | Busy recognisable Japanese street scene, neon signs, bustling crowds, urban energy | Region unlocked (Common) (Seedoms §11.3) | Seedoms |
+| `seedoms_region_rare.mp4` | 2-3s | Quiet atmospheric Japanese countryside, fog over coastline, lantern in market alley, peaceful and mysterious | Region unlocked (Rare/Legendary) (Seedoms §11.3) | Seedoms |
 
-Store at `assets/videos/ftue_intro.mp4` — pre-baked, not generated at runtime.
+**Design doc rules (§11.3):** Pre-generate and cache 8–10 clips. Do NOT call live during gameplay. Maximum 1 clip per day.
 
 ---
 
@@ -286,6 +356,193 @@ class DishPrice {
 
 **Hackathon implementation:** Since there is no real backend server yet, the service will use a local JSON fixture with variety data and prices, structured so it can be swapped for real HTTP calls later. The fixtures already exist in a compatible format at [`lib/fixtures/ramen.json`](../gourmet_go/lib/fixtures/ramen.json).
 
+### 2G. Ramen Varieties Fixture
+
+New file: `lib/fixtures/ramen_varieties.json`
+
+The canonical list of recognised ramen types for the `GET /ramen/varieties` endpoint (design doc §8). This is what `RamenApiService.getVarieties()` returns from local fixture in hackathon mode.
+
+```json
+[
+  { "variety_id": "tokyo_shoyu", "name": "Tokyo Shoyu Ramen", "regional_style": "Kanto", "broth_base": "shoyu", "rarity_tier": "common", "price": 850 },
+  { "variety_id": "ie_kei", "name": "Ie-kei Ramen", "regional_style": "Kanto", "broth_base": "tonkotsu_shoyu", "rarity_tier": "common", "price": 900 },
+  { "variety_id": "tsukemen", "name": "Tsukemen", "regional_style": "Kanto", "broth_base": "shoyu", "rarity_tier": "common", "price": 950 },
+  { "variety_id": "sapporo_miso", "name": "Sapporo Miso Ramen", "regional_style": "Hokkaido", "broth_base": "miso", "rarity_tier": "uncommon", "price": 1100 },
+  { "variety_id": "hakodate_shio", "name": "Hakodate Shio Ramen", "regional_style": "Hokkaido", "broth_base": "shio", "rarity_tier": "uncommon", "price": 1050 },
+  { "variety_id": "asahikawa_shoyu", "name": "Asahikawa Shoyu Ramen", "regional_style": "Hokkaido", "broth_base": "shoyu", "rarity_tier": "uncommon", "price": 1100 },
+  { "variety_id": "hakata_tonkotsu", "name": "Hakata Tonkotsu Ramen", "regional_style": "Kyushu", "broth_base": "tonkotsu", "rarity_tier": "uncommon", "price": 1050 },
+  { "variety_id": "kumamoto_tonkotsu", "name": "Kumamoto Tonkotsu Ramen", "regional_style": "Kyushu", "broth_base": "tonkotsu", "rarity_tier": "uncommon", "price": 1100 },
+  { "variety_id": "kitakata_shoyu", "name": "Kitakata Shoyu Ramen", "regional_style": "Tohoku", "broth_base": "shoyu", "rarity_tier": "rare", "price": 1400 },
+  { "variety_id": "yamagata_tori", "name": "Yamagata Tori-Chuuka Ramen", "regional_style": "Tohoku", "broth_base": "tori", "rarity_tier": "rare", "price": 1500 },
+  { "variety_id": "kansai_chicken_shoyu", "name": "Kansai Light Chicken Shoyu", "regional_style": "Kansai", "broth_base": "shoyu", "rarity_tier": "common", "price": 800 }
+]
+```
+
+### 2H. Sous Chef Fallback Lines Fixture
+
+New file: `lib/fixtures/sous_chef_lines.json`
+
+Design doc §9.1 requires 30+ pre-written fallback lines per category. These are used when LLM calls are unavailable, slow, or during the 1-call-per-4s rate limit.
+
+```json
+{
+  "dish_recognition_common": [
+    "Tokyo shoyu. A classic. Solid start for the menu.",
+    "Ah, a familiar friend. Simple but well-made.",
+    "Every kitchen needs its staples. Good choice, chef."
+  ],
+  "dish_recognition_rare": [
+    "Kitakata-style? Chef, most people never make it there. This is something.",
+    "Now that's a discovery. The regulars will talk about this one.",
+    "Off the beaten path. Your grandfather would approve."
+  ],
+  "mid_service_pause": [
+    "One moment, chef.",
+    "Take your time. The kitchen can wait.",
+    "A new discovery? Let me see."
+  ],
+  "queue_warning": [
+    "The queue's getting long. Stay focused.",
+    "Orders are stacking up, chef.",
+    "We're getting busy. Keep the bowls moving."
+  ],
+  "end_of_day": [
+    "Good day, chef. Here's what we earned — and here's what we could do with it.",
+    "The shop is quiet now. Let's look at how we did.",
+    "Another day done. Your grandfather's shop still stands."
+  ],
+  "discovery_nudge": [
+    "The menu's good — but Tohoku is calling. Have you been north yet?",
+    "There are whole regions waiting for you.",
+    "I hear there's a broth in Kitakata that no one can explain."
+  ],
+  "grandfather_reference": [
+    "Your grandfather always came back from Tohoku with something no one had tried before.",
+    "He'd stand right where you are now, tasting the broth before anyone else.",
+    "This shop has seen a lot of bowls. Yours is just beginning."
+  ],
+  "upgrade_suggestion": [
+    "A faster chef would change everything. Worth considering.",
+    "More counter seats might be the answer.",
+    "The shop could use some love. An upgrade, perhaps?"
+  ]
+}
+```
+
+### 2I. Pre-Seeded Starter Bowls Fixture
+
+New file: `lib/fixtures/starter_bowls.json`
+
+Per design doc §4 (Recognition Incorrect branch): *"offer 3 pre-seeded starter dishes to choose from."* These are the fallback options when the camera fails.
+
+```json
+[
+  {
+    "variety_id": "hakata_tonkotsu",
+    "name": "Hakata Tonkotsu Ramen",
+    "regional_style": "Kyushu",
+    "broth_base": "tonkotsu",
+    "rarity_tier": "uncommon",
+    "regional_lore": "Born in the bustling yatai stalls of Fukuoka, where chefs keep the broth rolling through the night.",
+    "icon": "ramen_bowl_icon_kyushu"
+  },
+  {
+    "variety_id": "sapporo_miso",
+    "name": "Sapporo Miso Ramen",
+    "regional_style": "Hokkaido",
+    "broth_base": "miso",
+    "rarity_tier": "uncommon",
+    "regional_lore": "Hokkaido's answer to winter — rich, warm, and impossible to forget.",
+    "icon": "ramen_bowl_icon_hokkaido"
+  },
+  {
+    "variety_id": "tokyo_shoyu",
+    "name": "Tokyo Shoyu Ramen",
+    "regional_style": "Kanto",
+    "broth_base": "shoyu",
+    "rarity_tier": "common",
+    "regional_lore": "The bowl that started it all. Clear, honest, and everywhere in the capital.",
+    "icon": "ramen_bowl_icon_kanto"
+  }
+]
+```
+
+### 2J. Customer Generation Service
+
+New file: `lib/services/customer_generation_service.dart`
+
+Per design doc §9.3 and todo.md Tier 1 BE: *"Customer generation (LLM) with rarity-aware payload — 6–10 pre-generated per day at day start."*
+
+```dart
+class CustomerGenerationService {
+  /// Pre-generates 6-10 customer personas at day start.
+  /// Uses the player's current menu rarity profile + day number + restaurant tier.
+  /// Falls back to pre-written customer templates if LLM unavailable.
+  Future<List<Customer>> generateDayCustomers({
+    required List<Dish> menu,
+    required int dayNumber,
+    required int restaurantTier,
+    required String chefSkill,
+  });
+}
+
+class Customer {
+  final String name;
+  final String personalityTag;
+  final String orderedDishId;
+  final CustomerPatience patience;  // hungry, relaxed, celebrating
+  final String? reactionOnServe;    // LLM-generated post-serve (non-blocking)
+}
+
+enum CustomerPatience { hungry, relaxed, celebrating }
+```
+
+**Design doc rules:**
+- Pre-generate 6-10 at day start, NOT live during service
+- Menu rarity profile drives customer diversity — rare dishes attract more story-rich customers
+- `patience` affects wait tolerance: hungry = short, relaxed = standard, celebrating = tips double
+- Customer reactions generated non-blocking after serve (separate LLM call)
+
+### 2K. Sous Chef Commentary Service
+
+New file: `lib/services/sous_chef_service.dart`
+
+Per design doc §9.1 and todo.md Tier 2 BE: *"FTUE sous chef dialogue — LLM integration; 30+ pre-written fallback lines per category."*
+
+```dart
+class SousChefService {
+  /// Generates a contextual sous chef line based on game state.
+  /// Rate-limited to max 1 call per 4 seconds during service.
+  /// Falls back to pre-written lines from sous_chef_lines.json.
+  Future<String> getCommentary(SousChefTrigger trigger, Map<String, dynamic> context);
+  
+  /// Generates end-of-day debrief line based on star rating.
+  Future<String> getDayDebrief(int stars, Map<String, dynamic> dayStats);
+  
+  /// Generates customer serve reaction (non-blocking, post-serve).
+  Future<String> getCustomerReaction(String dishName, RarityTier rarity, int qualityStars);
+}
+
+enum SousChefTrigger {
+  dishRecognitionCommon,
+  dishRecognitionRare,
+  midServicePause,
+  queueWarning,
+  rareBowlServed,
+  endOfDay,
+  discoveryNudge,
+  grandfatherReference,
+  upgradeSuggestion,
+}
+```
+
+**Design doc rules (§9.1):**
+- Max 12 words per line during active service
+- Longer reflective lines reserved for FTUE, end-of-day, between-session moments
+- Max 1 LLM call per 4 seconds during service
+- 30+ pre-written fallback lines per trigger category (from `sous_chef_lines.json`)
+- 800ms timeout before fallback (design doc §12.1)
+
 ### 2D. GameAssetService Updates
 
 Add to [`GameAssetService`](../gourmet_go/lib/services/game_asset_service.dart):
@@ -305,15 +562,26 @@ Add new SFX entries to [`GameSfx`](../gourmet_go/lib/services/game_audio_service
 
 ```dart
 enum GameSfx {
-  // ... existing entries
+  // ... existing entries (mapTap, chefWalk, doorOpen, arrive, photo, regionHover)
   kitchenAmbience('sfx_kitchen_ambience.mp3'),
   dishCardReveal('sfx_dish_card_reveal.mp3'),
   mapPulse('sfx_map_pulse.mp3'),
   customerArrive('sfx_customer_arrive.mp3'),
+  orderPlaced('sfx_order_placed.mp3'),
+  bowlServed('sfx_bowl_served.mp3'),
+  cashDing('sfx_cash_ding.mp3'),
+  dayEnd('sfx_day_end.mp3'),
+  upgradePurchase('sfx_upgrade_purchase.mp3'),
+  starRating('sfx_star_rating.mp3'),
 }
 ```
 
-Add `playFtueMusic()` method for the intro track.
+Add new music methods:
+- `playFtueMusic()` — intro track for FTUE
+- `playKitchenMusic()` — service day BGM
+- `playDayStartClip()` — triggers day-start video audio
+
+Add `playSeedomsClip(String clipName)` for contextual video playback (max 1/day).
 
 ---
 
