@@ -1,4 +1,8 @@
-# 🍜 Gourmet Go — AI Ramen Discovery Game
+# 🍜 Gourmet Go
+
+*Every journey starts with a single bowl.*
+
+Build your ramen empire from a tiny eatery to a bustling restaurant! Snap every bowl you eat across Japan to unlock authentic regional styles, level up your chefs, and serve hungry customers in this dreamy pixel art sim.
 
 **SF GenAI GameJam 2026** — An AI-native Japanese ramen discovery game built with Flutter.
 
@@ -6,11 +10,23 @@ Snap a photo of ramen, and AI identifies the dish, narrates its story, generates
 
 ---
 
+## Details
+
+| | |
+|---|---|
+| **Platform** | iOS / Web (Chrome) |
+| **Stack/Engine** | Flutter / Flame |
+| **Game Type** | Simulation |
+| **Age Rating** | 3+ |
+| **Art Style** | Dreamy anime-inspired isometric pixel art |
+
+---
+
 ## Quick Start
 
 ### 1. Prerequisites
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.10.4
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) ≥ 3.41.4 (Dart ≥ 3.11.1)
 - Xcode (for iOS) or Chrome (for web)
 - API keys (see below)
 
@@ -50,24 +66,20 @@ flutter run
 flutter run -d chrome --web-browser-flag="--disable-web-security"
 ```
 
-> ⚠️ The `--disable-web-security` flag is required because browser CORS policies block direct calls to Anthropic, ElevenLabs, Tripo, and BytePlus APIs. This is safe for local development only. On native platforms (iOS/macOS/Android) this is not needed.
+> ⚠️ The `--disable-web-security` flag is required because browser CORS policies block direct calls to Anthropic, ElevenLabs, Tripo, and BytePlus APIs. This is safe for local development only. On native platforms (iOS) this is not needed.
 
-**macOS Desktop:**
-```bash
-flutter run -d macos
-```
+### 5. Run Tests
 
-**Specific device:**
 ```bash
-flutter devices          # List available devices
-flutter run -d <device>  # Run on a specific device
+flutter test
+flutter analyze
 ```
 
 ---
 
 ## Screens
 
-The app currently defaults to the **API Test Screen** (`/test` route). This is configured in [`lib/main.dart`](lib/main.dart:33).
+The app currently defaults to the **API Test Screen** (`/test` route). This is configured in [`lib/main.dart`](lib/main.dart).
 
 ### API Test Screen (`/test`)
 
@@ -96,7 +108,7 @@ The main development/testing screen with 8 sections. Run the app and it opens au
 
 ### Home Screen (`/`)
 
-Placeholder screen. To switch the default screen, edit [`lib/main.dart`](lib/main.dart:33):
+Placeholder screen. To switch the default screen, edit [`lib/main.dart`](lib/main.dart):
 
 ```dart
 // Change this:
@@ -115,8 +127,11 @@ gourmet_go/
 │   ├── main.dart                    # App entry point, routes
 │   ├── models/
 │   │   ├── recipe.dart              # Recipe + Ingredient models
+│   │   ├── prep_step.dart           # Prep step model
 │   │   ├── line_cook.dart           # LineCook character model
-│   │   └── customer.dart            # Customer model
+│   │   ├── customer.dart            # Customer model
+│   │   ├── region.dart              # Region model
+│   │   └── dish.dart                # Dish model
 │   ├── services/
 │   │   ├── guide_service.dart       # Claude API — dish ID, chat, recipes
 │   │   ├── elevenlabs_service.dart  # ElevenLabs TTS — narration audio
@@ -125,25 +140,34 @@ gourmet_go/
 │   │   ├── tripo_service.dart       # Tripo3D — image-to-3D model
 │   │   ├── line_cook_service.dart   # Claude API — chef generation
 │   │   ├── customer_service.dart    # Claude API — customer queue
-│   │   └── review_service.dart      # Claude API — reviews
+│   │   ├── review_service.dart      # Claude API — reviews
+│   │   ├── debug_logger.dart        # Debug logging utility
+│   │   └── slap_service.dart        # Slap interaction service
 │   ├── screens/
 │   │   ├── api_test_screen.dart     # 8-section API test dashboard
-│   │   ├── camera_screen.dart       # Camera (stub)
-│   │   ├── map_screen.dart          # Japan map (stub)
-│   │   ├── prep_loop_screen.dart    # Cooking prep (stub)
-│   │   ├── restaurant_screen.dart   # Restaurant (stub)
-│   │   └── reveal_screen.dart       # Dish reveal (stub)
-│   └── widgets/                     # UI components (stubs)
+│   │   ├── camera_screen.dart       # Camera capture
+│   │   ├── map_screen.dart          # Japan map
+│   │   ├── prep_loop_screen.dart    # Cooking prep loop
+│   │   ├── restaurant_screen.dart   # Restaurant sim
+│   │   └── reveal_screen.dart       # Dish reveal
+│   └── widgets/
+│       ├── chef_reaction.dart       # Chef reaction widget
+│       ├── dish_card.dart           # Dish display card
+│       ├── item_table.dart          # Item table widget
+│       └── timing_bar.dart          # Timing bar widget
 ├── assets/
-│   ├── images/
+│   ├── images/                      # Game images
 │   │   └── tonkotsu_ramen_basic.png # Test ramen photo
-│   ├── models/
-│   │   ├── tonkotsu_ramen.glb       # 3D model (generated from test photo)
-│   │   ├── ramen.glb                # Placeholder GLB
-│   │   ├── masuzushi.glb            # Placeholder GLB
-│   │   └── takoyaki.glb             # Placeholder GLB
+│   ├── models/                      # 3D GLB models
 │   ├── videos/                      # Pre-baked video assets
 │   └── audio/                       # Sound effects
+├── docs/
+│   ├── restaurant_sim_prototype.md  # Restaurant sim design doc
+│   └── todo.md                      # Project todo list
+├── lib/fixtures/                    # JSON fixture data
+│   ├── ramen.json
+│   ├── masuzushi.json
+│   └── takoyaki.json
 ├── .env                             # API keys (gitignored)
 ├── .env.example                     # Template for API keys
 └── pubspec.yaml                     # Dependencies
@@ -177,3 +201,5 @@ gourmet_go/
 **Seedance returns 404** — Make sure you're using `ARK_API_KEY` (not `SEEDANCE_API_KEY`) and the endpoint is `/api/v3/contents/generations/tasks`.
 
 **flutter analyze shows warnings** — All current issues are info-level `avoid_print` hints, safe to ignore during development.
+
+**SDK version mismatch** — This project requires Dart ≥ 3.11.1 (Flutter ≥ 3.41.4). Run `flutter upgrade` if needed.

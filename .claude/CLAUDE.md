@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Gourmet Go is a Flutter iOS game app. The project targets iOS only (android, macos, linux, web, and windows platform folders have been removed).
+See [README.md](../README.md) for the full game description, art style, and platform details. See [docs/restaurant_sim_prototype.md](../docs/restaurant_sim_prototype.md) for the full prototype plan and [docs/todo.md](../docs/todo.md) for the hackathon build task breakdown (BE/FE).
+
+Gourmet GO is a Flutter/Flame iOS simulation game. The project targets iOS only (android, macos, linux, web, and windows platform folders have been removed).
 
 ## Common Commands
 
