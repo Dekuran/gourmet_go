@@ -1,8 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/skill_level.dart';
-import 'cash_provider.dart';
-import 'chef_provider.dart';
+import 'game_providers.dart';
 
 /// Whether the chef can afford the next upgrade.
 final canUpgradeProvider = Provider<bool>((ref) {

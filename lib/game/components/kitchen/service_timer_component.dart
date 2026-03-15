@@ -1,5 +1,6 @@
 import 'package:flame/components.dart';
 
+import '../../../providers/game_providers.dart';
 import '../../gourmet_go_game.dart';
 
 /// 240-second service day countdown with pause/resume support.
@@ -15,6 +16,7 @@ class ServiceTimerComponent extends Component {
   double _remaining = _dayDuration;
   bool _paused = false;
   bool _ended = false;
+  int _lastReportedSeconds = _dayDuration.toInt();
 
   /// Seconds left in the service day (rounded up).
   int get remainingSeconds => _remaining.ceil().clamp(0, _dayDuration.toInt());
@@ -31,6 +33,11 @@ class ServiceTimerComponent extends Component {
       _ended = true;
       game.showDaySummary();
     }
+    final secs = remainingSeconds;
+    if (secs != _lastReportedSeconds) {
+      _lastReportedSeconds = secs;
+      game.ref.read(timerSecondsProvider.notifier).set(secs);
+    }
   }
 
   void pause() => _paused = true;
@@ -40,5 +47,7 @@ class ServiceTimerComponent extends Component {
     _remaining = _dayDuration;
     _paused = false;
     _ended = false;
+    _lastReportedSeconds = _dayDuration.toInt();
+    game.ref.read(timerSecondsProvider.notifier).reset();
   }
 }

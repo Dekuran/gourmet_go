@@ -7,6 +7,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'game/gourmet_go_game.dart';
+import 'overlays/camera_overlay.dart';
+import 'overlays/day_summary_overlay.dart';
+import 'overlays/hud_overlay.dart';
+import 'overlays/map_info_overlay.dart';
+import 'overlays/upgrade_overlay.dart';
 import 'screens/api_test_screen.dart';
 
 Future<void> main() async {
@@ -97,7 +102,7 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
 
           // ── Camera / Recognition ──
           GameOverlay.camera.name: (context, game) =>
-              _placeholder('Camera'),
+              CameraOverlay(game: game),
           GameOverlay.dishReveal.name: (context, game) =>
               _placeholder('Dish Reveal'),
           GameOverlay.starterPicker.name: (context, game) =>
@@ -105,17 +110,17 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
 
           // ── Map ──
           GameOverlay.mapInfo.name: (context, game) =>
-              _placeholder('Map Info'),
+              MapInfoOverlay(game: game),
 
           // ── Shop / Service ──
           GameOverlay.hud.name: (context, game) =>
-              _placeholder('HUD'),
+              HudOverlay(game: game),
           GameOverlay.menuBoard.name: (context, game) =>
               _placeholder('Menu Board'),
           GameOverlay.daySummary.name: (context, game) =>
-              _placeholder('Day Summary'),
+              DaySummaryOverlay(game: game),
           GameOverlay.upgrade.name: (context, game) =>
-              _placeholder('Upgrade'),
+              UpgradeOverlay(game: game),
 
           // ── Dev tools ──
           GameOverlay.apiTest.name: (context, game) =>

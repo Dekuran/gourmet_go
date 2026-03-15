@@ -10,71 +10,43 @@ See [flame_implementation.md](flame_implementation.md) for full architecture and
 
 ### COMPLETED — Foundation Layer
 
-| What | Files Created | Notes |
-|------|--------------|-------|
-| Data models | `lib/models/dish.dart`, `skill_level.dart`, `chef_profile.dart`, `customer_order.dart`, `day_summary.dart`, `ramen_variety.dart` | All models per flame_implementation.md spec. `Dish` has `starterBowls` fallback, `DaySummary` has 3-factor compute factory, `SkillLevel` enum has `next` getter + `upgradeCost`. |
+| What | Files | Notes |
+|------|-------|-------|
+| Data models | `lib/models/dish.dart`, `skill_level.dart`, `chef_profile.dart`, `customer_order.dart`, `day_summary.dart`, `ramen_variety.dart` | All models per spec. `Dish` resolved merge conflict: int `rarityTier`, `effectivePrice`, `rarityLabel`, `fromJson`/`toJson`, `starterBowls`. |
 | Theme | `lib/theme/app_theme.dart`, `game_colors.dart` | Dark theme + game palette constants. |
-| Riverpod providers | `lib/providers/cash_provider.dart`, `chef_provider.dart`, `game_state_provider.dart`, `menu_provider.dart`, `customer_queue_provider.dart`, `region_provider.dart`, `upgrade_provider.dart` | All use Riverpod 3.x `Notifier` API (not deprecated `StateNotifier`). |
-| Dependencies | `shared_preferences`, `flutter_riverpod` added to pubspec.yaml | `flame_riverpod` v5.5.3 already present. |
+| Consolidated providers | `lib/providers/game_providers.dart` | Single file: `cashProvider`, `chefProvider`, `menuProvider`, `gamePhaseProvider`, `dayProvider`, `regionUnlockProvider`, `ftueCompleteProvider`, `chefCookTimeProvider`. Merged from `feat/ftue`. |
+| Supporting providers | `lib/providers/customer_queue_provider.dart`, `upgrade_provider.dart` | Kept separate (not in `game_providers.dart`). |
+| Dependencies | `shared_preferences`, `flutter_riverpod`, `flame_riverpod` v5.5.3 in pubspec.yaml | — |
+| Flame entry point | `lib/main.dart`, `lib/game/gourmet_go_game.dart` | `ProviderScope` → `MaterialApp` → `RiverpodAwareGameWidget`. `GourmetGoGame` has `GameOverlay` enum, scene helpers (`showHud`, `openCamera`, `showMapInfo`, `showDaySummary`), and `pendingRegionId`. Merged from `feat/ftue`. |
+| Worlds | `lib/game/worlds/shop_world.dart`, `map_world.dart` | `ShopWorld` mounts chef + queue + timer, shows/hides HUD. `MapWorld` renders 4 `RegionNode`s. |
+| Chef mechanics | `lib/game/components/chef/chef_entity.dart`, `cook_behavior.dart`, `chef_state.dart` | `ChefEntity` holds cook queue + wires `OrderDispatcher`. `CookBehavior`: Available → Cooking → Plating state machine. Earns cash via `cashProvider` on serve. |
+| Progress bar | `lib/game/components/kitchen/progress_bar_component.dart` | Canvas-rendered fill bar; used for cook progress and patience. |
+| Customer system | `lib/game/components/customer/customer_entity.dart`, `wait_behavior.dart`, `speech_bubble_component.dart`, `customer_state.dart` | Mechanical only. Tap bubble → `OrderDispatcher.assign()`. Patience countdown via `WaitBehavior`. |
+| Customer spawning | `lib/game/components/customer/customer_queue_component.dart` | Spawns up to 8 customers per day, ~30s apart. |
+| Kitchen infrastructure | `lib/game/components/kitchen/order_dispatcher.dart`, `service_timer_component.dart` | `OrderDispatcher` routes orders to chef. `ServiceTimerComponent` 240s countdown → triggers `showDaySummary()`. |
+| Map region nodes | `lib/game/components/map/region_node.dart` | Tappable circle per region; dimmed when locked. Tap → `showMapInfo(regionId)`. |
 
 ### NEXT — Pick Up Here
 
 Build these in order. Each task references the architecture in `flame_implementation.md`.
 
-**1. GourmetGame + main.dart** (`lib/game/gourmet_game.dart`, update `lib/main.dart`)
-- Replace current `main.dart` with `ProviderScope` → `MaterialApp` (theme only) → `RiverpodAwareGameWidget`
-- `GourmetGame extends FlameGame with RiverpodGameMixin` — register all overlay builders
-- Check `flame_riverpod` v5 API: use `RiverpodAwareGameWidget`, `RiverpodGameMixin`, `RiverpodComponentMixin`
-- Overlay keys: `'hud'`, `'camera'`, `'map_info'`, `'day_summary'`, `'upgrade'`, `'sous_chef_bubble'`
-- Game starts by loading `MapWorld` (assume FTUE complete)
+**1. Overlays** (`lib/overlays/`)
+- `hud_overlay.dart` — `ConsumerWidget`: cash balance (watches `cashProvider`), day timer (reads `ServiceTimerComponent.remainingSeconds` via game ref), bottom bar with camera icon + map icon
+- `camera_overlay.dart` — `image_picker` + `GuideService.identifyAsDish()` + scanning animation (reuse pattern from deprecated `CameraScreen`). On success: `ref.read(menuProvider.notifier).addDish(dish)` + `ref.read(regionUnlockProvider.notifier).unlock(...)`. On failure (confidence < 0.6): show starter bowl picker. Pauses `ServiceTimerComponent` while open.
+- `map_info_overlay.dart` — bottom sheet for `game.pendingRegionId`: region name, ramen type, `arrivalQuote`, "Enter Shop" CTA → `game.switchScene(ShopWorld, 'shop')`
+- `day_summary_overlay.dart` — reads `customerQueueProvider` for served/missed counts, computes `DaySummary` (speed 30%, skill 30%, fulfilment 40%), displays 1–5 stars + sous chef debrief line. "Continue" → show `upgrade` overlay.
+- `upgrade_overlay.dart` — shows Ken's current skill + next tier cost. "Upgrade" → `ref.read(chefProvider.notifier).upgrade()` + `ref.read(cashProvider.notifier).spend(cost)`. Cash-gates button. "Next Day" → `game.switchScene(MapWorld, 'map')`.
 
-**2. ShopWorld** (`lib/game/worlds/shop_world.dart`)
-- Extends `World` — colored rectangle kitchen background (placeholder)
-- On mount: show `'hud'` overlay, create `ChefEntity`, `CustomerQueueComponent`, `ServiceTimerComponent`, `OrderDispatcher`
-- On remove: hide `'hud'` overlay
+**2. API + persistence** (`lib/services/`)
+- `ramen_api_service.dart` — `GET /ramen/varieties` (cache for session, fallback to `fallback_varieties.json`); `GET /ramen/{variety_id}/price` (non-blocking, updates `menuProvider` via `updateDish`)
+- `local_storage_service.dart` — SharedPreferences: persist/restore cash balance, chef skill level, day number, menu (JSON list), region unlock state
+- `lib/fixtures/fallback_varieties.json` — offline fallback: array of `{ variety_id, name, regional_style, broth_base, rarity_tier }` for the 3 starter regions
 
-**3. Chef mechanics** (`lib/game/components/chef/`)
-- `chef_entity.dart` — `PositionComponent` with `RiverpodComponentMixin`, holds cook queue
-- `cook_behavior.dart` — `Behavior<ChefEntity>` state machine: Available → Cooking → Plating → Available
-- `progress_bar_component.dart` — `PositionComponent` using `RectangleComponent` + Paint (not sprites)
-- On cook complete: `ref.read(cashProvider.notifier).earn(dish.price)`
-
-**4. Customer system** (`lib/game/components/customer/`)
-- `customer_entity.dart` — `PositionComponent` with `TapCallbacks`, holds `CustomerOrder`
-- `wait_behavior.dart` — `Behavior<CustomerEntity>` patience countdown
-- `speech_bubble_component.dart` — `PositionComponent` with dish name text
-- Tap speech bubble → assign order to chef queue via `OrderDispatcher`
-
-**5. Kitchen infrastructure** (`lib/game/components/kitchen/`)
-- `order_dispatcher.dart` — routes tapped orders to chef queue
-- `service_timer_component.dart` — 240s countdown, pause/resume support
-
-**6. MapWorld** (`lib/game/worlds/map_world.dart`, `lib/game/components/map/`)
-- 4 `RegionNode` components with `TapCallbacks`, positioned using `Region.mapPosition`
-- Tap region → show `'map_info'` overlay
-- "Enter Shop" CTA → swap to `ShopWorld`
-
-**7. Overlays** (`lib/overlays/`)
-- `hud_overlay.dart` — `ConsumerWidget`: cash balance, day timer, bottom bar (camera + map icons)
-- `camera_overlay.dart` — reuses `CameraScreen` behavior (image_picker + GuideService + scanning animation), adds dish to `menuProvider`
-- `map_info_overlay.dart` — region detail bottom sheet with "Enter Shop" CTA
-- `day_summary_overlay.dart` — star rating display from `DaySummary`
-- `upgrade_overlay.dart` — chef skill upgrade with cash gating
-
-**8. API + persistence** (`lib/services/`)
-- `ramen_api_service.dart` — GET /ramen/varieties, GET /ramen/{id}/price
-- `local_storage_service.dart` — SharedPreferences for cash, chef skill, day number
-- `lib/fixtures/fallback_varieties.json` — offline API fallback
-
-**9. Day lifecycle wiring**
-- Pre-day: seed customers from menu, populate ShopWorld
-- Service: 240s timer, spawn customers ~30s apart
-- Post-day: compute DaySummary, show overlays, upgrades, transition to MapWorld
-
-**10. Cleanup**
-- Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/`
-- Remove `flame_tiled`, `flame_forge2d`, `flame_rive` from pubspec (they're not in pubspec currently — verify)
+**3. Cleanup**
+- Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/` (screens were moved to `deprecated/` in the merge; now remove entirely)
+- Consolidate or delete superseded provider files: `cash_provider.dart`, `chef_provider.dart`, `menu_provider.dart`, `game_state_provider.dart`, `region_provider.dart` (all superseded by `game_providers.dart`)
 - Run `flutter analyze` and fix all issues
+- Run `dcm analyze lib`
 
 ### Key Implementation Notes
 
@@ -91,13 +63,13 @@ Build these in order. Each task references the architecture in `flame_implementa
 
 | Task | Notes | Status |
 |------|-------|--------|
-| ~~Replace `main.dart` with Flame entry point~~ | — | **Next up** |
-| ~~Create `GourmetGame` with `RiverpodGameMixin`~~ | — | **Next up** |
-| ~~Migrate state management to `flame_riverpod`~~ | Providers created, need to wire into Flame components | **Partial** |
-| Remove old Flutter screens and widgets | Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/`. Preserve service and model files. | Pending |
-| Remove unused Flame packages | Verify which are still in pubspec. | Pending |
-| ~~Implement `Dish` model per API contract~~ | — | **Done** |
-| Update `GuideService.identifyDish()` to return structured JSON | Currently returns free-text string. Must return JSON matching Dish model fields. | Pending |
+| ~~Replace `main.dart` with Flame entry point~~ | `ProviderScope` → `MaterialApp` → `RiverpodAwareGameWidget`. Merged from `feat/ftue`. | **Done** |
+| ~~Create `GourmetGoGame` with `RiverpodGameMixin`~~ | `GameOverlay` enum, scene helpers, `pendingRegionId`. | **Done** |
+| ~~Migrate state management to `flame_riverpod`~~ | All providers in `game_providers.dart`; components use `RiverpodComponentMixin`. | **Done** |
+| Remove old Flutter screens and widgets | Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/`. Consolidate superseded provider files. | **Pending** |
+| Remove unused Flame packages | Verify which are still in pubspec. | **Pending** |
+| ~~Implement `Dish` model per API contract~~ | int `rarityTier`, `effectivePrice`, `rarityLabel`, `fromIdentification`, `fromJson`/`toJson`. | **Done** |
+| ~~Update `GuideService.identifyDish()` to return structured JSON~~ | `identifyDishStructured()` + `identifyAsDish()` already added in `feat/ftue` merge. | **Done** |
 
 ---
 
@@ -115,12 +87,12 @@ Build these in order. Each task references the architecture in `flame_implementa
 
 | Task | Notes | Est. |
 |------|-------|------|
-| `camera_overlay.dart` — reuse `CameraScreen` behavior | `image_picker` + `GuideService.identifyDish()` + scanning animation. Opens as Flame overlay, pauses current world. Dish added to `menuProvider` on success. | 3h |
-| Single chef (Ken) cook queue + progress bar + state machine | `ChefEntity` + `CookBehavior`: Available → Cooking → Plating → Rest. Ken starts at Trained (45s). `ProgressBarComponent` renders on canvas. | 4h |
-| Mechanical `CustomerEntity` + `WaitBehavior` + `SpeechBubbleComponent` | Customer arrives with random dish from menu + patience timer. Speech bubble shows dish name. Patience bar counts down. Leaves if expired. No personality/names. | 4h |
-| Tap-to-assign orders to Ken | Tap speech bubble → order added to Ken's queue. `TapCallbacks` mixin on customer entity. | 2h |
-| Cash earned on serve via `cashProvider` | `CookBehavior` completion → `ref.read(cashProvider.notifier).earn(dish.price)`. HUD overlay watches provider reactively. | 1h |
-| `hud_overlay.dart` — cash balance + day timer + bottom bar | Bottom bar has camera icon and map icon. Day timer counts down from 240s. | 2h |
+| `camera_overlay.dart` — reuse `CameraScreen` behavior | `image_picker` + `GuideService.identifyAsDish()` + scanning animation. Opens as Flame overlay, pauses current world. Dish added to `menuProvider` on success. | 3h |
+| ~~Single chef (Ken) cook queue + progress bar + state machine~~ | `ChefEntity` + `CookBehavior` + `ProgressBarComponent` built. | **Done** |
+| ~~Mechanical `CustomerEntity` + `WaitBehavior` + `SpeechBubbleComponent`~~ | Built with patience bar, spawning via `CustomerQueueComponent`. | **Done** |
+| ~~Tap-to-assign orders to Ken~~ | `SpeechBubbleComponent` TapCallbacks → `OrderDispatcher.assign()`. | **Done** |
+| ~~Cash earned on serve via `cashProvider`~~ | `ChefEntity.onOrderServed()` → `cashProvider.earn(dish.effectivePrice)`. | **Done** |
+| `hud_overlay.dart` — cash balance + day timer + bottom bar | Bottom bar has camera icon and map icon. Day timer counts down from 240s. | Pending |
 
 ---
 
@@ -131,12 +103,12 @@ Build these in order. Each task references the architecture in `flame_implementa
 | Task | Notes | Est. |
 |------|-------|------|
 | FTUE: `FtueWorld` + `ftue_overlay.dart` | Dark kitchen background. Sous chef monologue from prototype Section 4 (tap to advance). Opens camera at end. `ftueProvider` persists completion. | 3h |
-| Japan map: `MapWorld` + `RegionNode` x4 + `ChefWalkerEntity` | Isometric map BG, 4 tappable regions (Hokkaido, Kanto, Kansai, Kyushu) using existing `Region` model. Chef walks between regions. `RamenBowlIcon` floats above each. | 5h |
-| `map_info_overlay.dart` — region detail bottom sheet | Shows region name, ramen type, description, arrivalQuote. "Enter Shop" CTA transitions to `ShopWorld`. | 2h |
-| `day_summary_overlay.dart` + star rating calculation | 3-factor weighted score (speed 30%, skill 30%, fulfilment 40%) → 1–5 stars. Sous chef debrief line per star level. | 4h |
-| `upgrade_overlay.dart` — chef skill upgrade | Ken: Trained → Skilled → Expert → Master. Persistent via SharedPreferences. Cash gating. No hiring — single chef only. | 3h |
-| `sous_chef_bubble.dart` — contextual commentary | Hardcoded lines: queue backing up, rare bowl served, end of day, discovery nudge. Max 12 words during service. | 2h |
-| Day lifecycle: `ServiceTimerComponent` + phase transitions | 240s countdown, pause/resume on camera/map open. Day-end → summary → upgrades → back to MapWorld. Persist state between days. | 3h |
+| ~~Japan map: `MapWorld` + `RegionNode` x4~~ | 4 tappable `RegionNode`s positioned from `Region.mapPosition`. Tap → `showMapInfo`. ChefWalkerEntity + RamenBowlIcon deferred. | **Done** |
+| `map_info_overlay.dart` — region detail bottom sheet | Shows region name, ramen type, description, arrivalQuote. "Enter Shop" CTA transitions to `ShopWorld`. | Pending |
+| `day_summary_overlay.dart` + star rating calculation | 3-factor weighted score (speed 30%, skill 30%, fulfilment 40%) → 1–5 stars. Sous chef debrief line per star level. | Pending |
+| `upgrade_overlay.dart` — chef skill upgrade | Ken: Trained → Skilled → Expert → Master. Persistent via SharedPreferences. Cash gating. No hiring — single chef only. | Pending |
+| `sous_chef_bubble.dart` — contextual commentary | Hardcoded lines: queue backing up, rare bowl served, end of day, discovery nudge. Max 12 words during service. | Pending |
+| ~~`ServiceTimerComponent` + phase transitions~~ | 240s countdown with pause/resume built. Day-end triggers `showDaySummary()`. Full lifecycle wiring (persist state, transitions) still pending. | **Partial** |
 
 ---
 
