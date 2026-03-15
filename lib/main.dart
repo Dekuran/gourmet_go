@@ -7,6 +7,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'game/gourmet_go_game.dart';
+import 'overlays/camera_overlay.dart';
+import 'overlays/dish_reveal_overlay.dart';
+import 'overlays/ftue_dialogue_overlay.dart';
+import 'overlays/hud_overlay.dart';
 import 'screens/api_test_screen.dart';
 
 Future<void> main() async {
@@ -91,15 +95,15 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
         overlayBuilderMap: {
           // ── FTUE ──
           GameOverlay.ftue.name: (context, game) =>
-              _placeholder('FTUE Dialogue'),
+              FtueDialogueOverlay(game: game),
           GameOverlay.sousChefBubble.name: (context, game) =>
               _placeholder('Sous Chef Bubble'),
 
           // ── Camera / Recognition ──
           GameOverlay.camera.name: (context, game) =>
-              _placeholder('Camera'),
+              CameraOverlay(game: game),
           GameOverlay.dishReveal.name: (context, game) =>
-              _placeholder('Dish Reveal'),
+              DishRevealOverlay(game: game),
           GameOverlay.starterPicker.name: (context, game) =>
               _placeholder('Starter Picker'),
 
@@ -109,7 +113,7 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
 
           // ── Shop / Service ──
           GameOverlay.hud.name: (context, game) =>
-              _placeholder('HUD'),
+              HudOverlay(game: game),
           GameOverlay.menuBoard.name: (context, game) =>
               _placeholder('Menu Board'),
           GameOverlay.daySummary.name: (context, game) =>

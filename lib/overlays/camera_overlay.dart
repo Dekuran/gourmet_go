@@ -1,10 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game/gourmet_go_game.dart';
-import '../models/dish.dart';
 import '../providers/game_providers.dart';
 import '../services/debug_logger.dart';
 import '../services/ftue_service.dart';
@@ -58,14 +55,14 @@ class _CameraOverlayState extends ConsumerState<CameraOverlay> {
 
       await _audio.playSfx(GameSfx.photo);
 
-      // 2. Identify the dish
+      // 2. Identify the dish (always returns Dish; confidence 0.0 = unrecognised)
       _log.logInfo('Camera', 'Identifying dish...');
       final dish = await _guide.identifyAsDish(bytes);
 
-      if (dish == null) {
+      if ((dish.confidence ?? 0.0) < 0.3) {
         setState(() {
           _processing = false;
-          _error = 'Could not identify the dish. Try again!';
+          _error = 'Could not confidently identify the dish. Try again!';
         });
         return;
       }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../game/gourmet_go_game.dart';
 import '../game/scenes/ftue_scene.dart';
-import '../game/scenes/map_scene.dart';
 import '../services/debug_logger.dart';
 import '../services/ftue_service.dart';
 import '../services/game_asset_service.dart';
