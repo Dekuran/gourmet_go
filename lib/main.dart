@@ -4,11 +4,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
-  runApp(const GourmetGoApp());
+  runApp(const MyApp());
 }
 
-class GourmetGoApp extends StatelessWidget {
-  const GourmetGoApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,26 +29,7 @@ class GourmetGoApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gourmet Go'),
-      ),
-      body: const Center(
-        child: Text(
-          '🍣 Gourmet Go',
-          style: TextStyle(fontSize: 32),
-        ),
-      ),
+      home: const Center(),
     );
   }
 }
