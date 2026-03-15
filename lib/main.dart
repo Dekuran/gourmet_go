@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'screens/api_test_screen.dart';
+import 'screens/map_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
-  runApp(const MyApp());
+  runApp(const GourmetGoApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class GourmetGoApp extends StatelessWidget {
+  const GourmetGoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +31,31 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const Center(),
+      initialRoute: '/map',
+      routes: {
+        '/': (context) => const HomeScreen(),
+        '/map': (context) => const MapScreen(),
+        '/test': (context) => const ApiTestScreen(),
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Gourmet Go'),
+      ),
+      body: const Center(
+        child: Text(
+          '🍣 Gourmet Go',
+          style: TextStyle(fontSize: 32),
+        ),
+      ),
     );
   }
 }

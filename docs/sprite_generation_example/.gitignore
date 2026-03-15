@@ -1,0 +1,13 @@
+# Auto-created venv (regenerated on first run)
+scripts_venv/
+
+# Generated sprites (run generate_sprites.py to create)
+sprites/*.png
+sprites/nobg/
+
+# Environment secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc

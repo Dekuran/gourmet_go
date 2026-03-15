@@ -53,5 +53,7 @@
 	<string>Gourmet Go needs photo library access to save and select dish photos.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Gourmet Go needs permission to save photos to your library.</string>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
 </dict>
 </plist>
