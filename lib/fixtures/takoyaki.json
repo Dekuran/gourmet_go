@@ -1,0 +1,50 @@
+{
+  "dish_name": "Osaka Takoyaki",
+  "region": "Osaka",
+  "prefecture": "Osaka",
+  "rarity": "common",
+  "flavor_tags": ["crispy", "umami", "octopus", "savory"],
+  "description": "Crispy-outside, molten-inside octopus balls from Osaka's vibrant street food scene.",
+  "teaser": "They spin them with chopsticks on a griddle of half-spheres. The outside is crisp. The inside is lava. Osaka invented this.",
+  "steps": [
+    {
+      "mode": "MIX",
+      "instruction": "Prepare the takoyaki batter",
+      "correct": ["dashi_batter"],
+      "wrong": ["pancake_mix", "tempura_batter", "flour_water"],
+      "timer_duration": 6,
+      "timer_type": "speed",
+      "slap_context": "mixing takoyaki batter with dashi stock"
+    },
+    {
+      "mode": "CUT",
+      "instruction": "Prepare the octopus",
+      "correct": ["bite_size_chunks"],
+      "wrong": ["thin_slices", "whole_tentacle", "minced"],
+      "timer_duration": 5,
+      "timer_type": "speed",
+      "slap_context": "cutting octopus for takoyaki"
+    },
+    {
+      "mode": "HEAT",
+      "instruction": "Cook the takoyaki on the griddle",
+      "correct": ["medium_heat_spin"],
+      "wrong": ["deep_fry", "high_heat_no_turn", "microwave"],
+      "timer_duration": 10,
+      "timer_type": "heat",
+      "slap_context": "spinning takoyaki on the cast iron griddle"
+    },
+    {
+      "mode": "PLATE",
+      "instruction": "Top the takoyaki correctly",
+      "correct": ["takoyaki_sauce", "mayo", "bonito_flakes", "aonori"],
+      "wrong": ["ketchup", "soy_sauce_only", "no_topping"],
+      "timer_duration": 0,
+      "timer_type": "none",
+      "slap_context": "topping takoyaki Osaka-style"
+    }
+  ],
+  "tripo_prompt": "Osaka takoyaki octopus balls on a wooden boat plate with takoyaki sauce, mayo, bonito flakes, and green aonori, Japanese street food, top-down view, white background",
+  "seedance_prompt": "Japanese street vendor spinning takoyaki on a cast iron griddle with chopsticks, steam rising, Osaka neon lights background, cinematic food documentary style",
+  "guide_personality": "energetic, Osaka humor, streetwise and playful"
+}

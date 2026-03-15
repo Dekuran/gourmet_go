@@ -1,0 +1,22 @@
+# Environment files
+.env
+*.env
+
+# Build output
+/build
+
+# Flutter/Dart tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# macOS
+*.DS_Store
+
+# Generated
+*.g.dart

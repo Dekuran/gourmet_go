@@ -1,0 +1,50 @@
+{
+  "dish_name": "Toyama Masuzushi",
+  "region": "Toyama",
+  "prefecture": "Toyama",
+  "rarity": "regional",
+  "flavor_tags": ["delicate", "fermented", "pressed"],
+  "description": "A centuries-old pressed trout sushi in a cedar mold, wrapped in bamboo leaves.",
+  "teaser": "There is a dish here that takes hours to make under weight. The cedar is not packaging — it is an ingredient.",
+  "steps": [
+    {
+      "mode": "CUT",
+      "instruction": "Select the right knife for slicing sakuramasu trout",
+      "correct": ["deba_knife"],
+      "wrong": ["cleaver", "bread_knife", "peeler"],
+      "timer_duration": 8,
+      "timer_type": "speed",
+      "slap_context": "cutting sakuramasu trout for masuzushi"
+    },
+    {
+      "mode": "HEAT",
+      "instruction": "Cook the sushi rice to the right temperature",
+      "correct": ["low_simmer"],
+      "wrong": ["high_boil", "microwave", "raw"],
+      "timer_duration": 10,
+      "timer_type": "heat",
+      "slap_context": "preparing rice for masuzushi"
+    },
+    {
+      "mode": "REST",
+      "instruction": "How long do you press the masuzushi?",
+      "correct": ["8_hours"],
+      "wrong": ["30_minutes", "3_days", "overnight"],
+      "timer_duration": 0,
+      "timer_type": "selection",
+      "slap_context": "pressing masuzushi in the cedar mold"
+    },
+    {
+      "mode": "PLATE",
+      "instruction": "Present the masuzushi correctly",
+      "correct": ["cedar_lid", "bamboo_leaf"],
+      "wrong": ["ceramic_plate", "soy_sauce_pool", "chopsticks_on_top"],
+      "timer_duration": 0,
+      "timer_type": "none",
+      "slap_context": "presenting masuzushi to a guest"
+    }
+  ],
+  "tripo_prompt": "Toyama masuzushi pressed trout sushi in a round cedar wooden box wrapped in bamboo leaves, Japanese food, top-down view, white background",
+  "seedance_prompt": "Japanese chef carefully preparing masuzushi pressed sushi, cedar mold, bamboo leaves, traditional kitchen, cinematic food documentary style",
+  "guide_personality": "precise, proud of Toyama heritage, slightly stern"
+}

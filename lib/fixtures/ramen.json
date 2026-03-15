@@ -1,0 +1,50 @@
+{
+  "dish_name": "Hakata Tonkotsu Ramen",
+  "region": "Fukuoka",
+  "prefecture": "Fukuoka",
+  "rarity": "common",
+  "flavor_tags": ["rich", "umami", "pork", "creamy"],
+  "description": "Milky white pork bone broth ramen from Fukuoka's legendary yatai street stalls.",
+  "teaser": "The broth is white because of what happens when you boil pork bones hard enough, long enough. Most people have never tasted it this way.",
+  "steps": [
+    {
+      "mode": "HEAT",
+      "instruction": "Boil the tonkotsu broth correctly",
+      "correct": ["rolling_boil"],
+      "wrong": ["low_simmer", "microwave", "room_temp"],
+      "timer_duration": 12,
+      "timer_type": "heat",
+      "slap_context": "making tonkotsu broth for hakata ramen"
+    },
+    {
+      "mode": "CUT",
+      "instruction": "Slice the chashu pork belly",
+      "correct": ["thin_slicer"],
+      "wrong": ["deba_knife", "bread_knife", "scissors"],
+      "timer_duration": 6,
+      "timer_type": "speed",
+      "slap_context": "slicing chashu pork for hakata ramen"
+    },
+    {
+      "mode": "MIX",
+      "instruction": "Season the broth",
+      "correct": ["tare_sauce"],
+      "wrong": ["soy_sauce_direct", "miso_paste", "salt_only"],
+      "timer_duration": 5,
+      "timer_type": "speed",
+      "slap_context": "seasoning tonkotsu broth"
+    },
+    {
+      "mode": "PLATE",
+      "instruction": "Build the bowl correctly",
+      "correct": ["noodles_first", "chashu_side", "soft_egg"],
+      "wrong": ["egg_first", "no_noodles", "ketchup"],
+      "timer_duration": 0,
+      "timer_type": "none",
+      "slap_context": "assembling hakata ramen bowl"
+    }
+  ],
+  "tripo_prompt": "Hakata tonkotsu ramen bowl with white creamy broth, chashu pork, soft boiled egg, green onions, noodles, Japanese food, top-down view, white background",
+  "seedance_prompt": "Japanese yatai street stall chef preparing hakata tonkotsu ramen, steam rising from milky white broth, night street scene, cinematic food documentary style",
+  "guide_personality": "boisterous, passionate about Fukuoka street food, friendly and loud"
+}
