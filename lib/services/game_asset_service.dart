@@ -118,7 +118,8 @@ class GameAssetService {
 
   /// Load a Flame [Image] from a sprite path.
   ///
-  /// Uses Flame's image cache. The [assetPath] is relative to `assets/`.
+  /// Uses Flame's image cache. The [assetPath] is relative to
+  /// `assets/images/` (Flame's default prefix).
   Future<ui.Image?> loadFlameImage(String assetPath) async {
     try {
       return await Flame.images.load(assetPath);
