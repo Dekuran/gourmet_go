@@ -2,15 +2,16 @@ import 'dart:developer' as developer;
 
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
+import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:flutter/material.dart';
 
 /// All overlay identifiers used by the Flame [GameWidget].
 ///
 /// Each overlay maps to a Flutter widget builder registered in
-/// [GameWidget.overlayBuilderMap] inside `main.dart`.
+/// [RiverpodAwareGameWidget.overlayBuilderMap] inside `main.dart`.
 enum GameOverlay {
   /// FTUE sous-chef dialogue panel.
-  dialogue,
+  ftue,
 
   /// Camera capture screen (photo → recognition).
   camera,
@@ -27,16 +28,31 @@ enum GameOverlay {
   /// Starter bowl picker (FTUE fallback when camera unavailable).
   starterPicker,
 
+  /// Map region info bottom sheet.
+  mapInfo,
+
+  /// Day summary + star rating overlay.
+  daySummary,
+
+  /// Chef upgrade overlay.
+  upgrade,
+
+  /// Sous chef contextual commentary bubble.
+  sousChefBubble,
+
   /// API test dashboard — preserved from pre-Flame build.
   apiTest,
 }
 
 /// Root-level Flame game for Gourmet GO.
 ///
-/// Manages scene transitions via [World] swapping and
-/// Flutter overlay toggling for UI-heavy panels (camera, menus,
-/// dialogue). Uses [FlameGame] with a fixed-resolution camera.
-class GourmetGoGame extends FlameGame {
+/// Uses [RiverpodGameMixin] so that Flame components can access
+/// Riverpod providers via [RiverpodComponentMixin.ref]. The game
+/// manages scene transitions via [World] swapping and Flutter
+/// overlay toggling for UI-heavy panels (camera, menus, dialogue).
+///
+/// Must be used with [RiverpodAwareGameWidget] in `main.dart`.
+class GourmetGoGame extends FlameGame with RiverpodGameMixin {
   GourmetGoGame()
       : super(
           camera: CameraComponent.withFixedResolution(
@@ -55,7 +71,7 @@ class GourmetGoGame extends FlameGame {
   Future<void> onLoad() async {
     await super.onLoad();
     developer.log(
-      'GourmetGoGame loaded — viewport 390×844',
+      'GourmetGoGame loaded — viewport 390×844, Riverpod bridged',
       name: 'gourmet_go.game',
     );
 

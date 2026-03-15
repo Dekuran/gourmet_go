@@ -1,6 +1,6 @@
 import 'dart:developer' as developer;
 
-import 'package:flame/game.dart';
+import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -31,9 +31,11 @@ Future<void> main() async {
 
 /// Top-level app widget.
 ///
-/// Wraps a [GameWidget] inside a [MaterialApp] so that
-/// Flutter overlays (camera, menus, dialogue panels) can
-/// use Material widgets and theme data.
+/// Wraps a [RiverpodAwareGameWidget] inside a [MaterialApp] so
+/// that Flutter overlays (camera, menus, dialogue panels) can use
+/// Material widgets and theme data. The [RiverpodAwareGameWidget]
+/// bridges Riverpod providers into the Flame game engine via
+/// [RiverpodGameMixin] on [GourmetGoGame].
 class GourmetGoApp extends StatefulWidget {
   const GourmetGoApp({super.key});
 
@@ -43,6 +45,8 @@ class GourmetGoApp extends StatefulWidget {
 
 class _GourmetGoAppState extends State<GourmetGoApp> {
   late final GourmetGoGame _game;
+  final _gameWidgetKey =
+      GlobalKey<RiverpodAwareGameWidgetState<GourmetGoGame>>();
 
   /// When true, shows the legacy API test screen instead
   /// of the Flame game. Toggle via the debug FAB.
@@ -79,26 +83,41 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
 
   Widget _buildGameView() {
     return Scaffold(
-      body: GameWidget<GourmetGoGame>(
+      body: RiverpodAwareGameWidget<GourmetGoGame>(
+        key: _gameWidgetKey,
         game: _game,
         loadingBuilder: (_) => const _LoadingScreen(),
         errorBuilder: (context, error) => _ErrorScreen(error: error),
         overlayBuilderMap: {
-          // Each GameOverlay enum value is registered here.
-          // Placeholder builders — real widgets added in later
-          // phases.
-          GameOverlay.dialogue.name: (context, game) =>
-              _buildPlaceholderOverlay('Dialogue'),
+          // ── FTUE ──
+          GameOverlay.ftue.name: (context, game) =>
+              _placeholder('FTUE Dialogue'),
+          GameOverlay.sousChefBubble.name: (context, game) =>
+              _placeholder('Sous Chef Bubble'),
+
+          // ── Camera / Recognition ──
           GameOverlay.camera.name: (context, game) =>
-              _buildPlaceholderOverlay('Camera'),
+              _placeholder('Camera'),
           GameOverlay.dishReveal.name: (context, game) =>
-              _buildPlaceholderOverlay('Dish Reveal'),
-          GameOverlay.menuBoard.name: (context, game) =>
-              _buildPlaceholderOverlay('Menu Board'),
-          GameOverlay.hud.name: (context, game) =>
-              _buildPlaceholderOverlay('HUD'),
+              _placeholder('Dish Reveal'),
           GameOverlay.starterPicker.name: (context, game) =>
-              _buildPlaceholderOverlay('Starter Picker'),
+              _placeholder('Starter Picker'),
+
+          // ── Map ──
+          GameOverlay.mapInfo.name: (context, game) =>
+              _placeholder('Map Info'),
+
+          // ── Shop / Service ──
+          GameOverlay.hud.name: (context, game) =>
+              _placeholder('HUD'),
+          GameOverlay.menuBoard.name: (context, game) =>
+              _placeholder('Menu Board'),
+          GameOverlay.daySummary.name: (context, game) =>
+              _placeholder('Day Summary'),
+          GameOverlay.upgrade.name: (context, game) =>
+              _placeholder('Upgrade'),
+
+          // ── Dev tools ──
           GameOverlay.apiTest.name: (context, game) =>
               const ApiTestScreen(),
         },
@@ -118,8 +137,8 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
   }
 
   /// Temporary overlay placeholder used until real overlay
-  /// widgets are implemented in Phase 3–4.
-  Widget _buildPlaceholderOverlay(String label) {
+  /// widgets are implemented in later phases.
+  Widget _placeholder(String label) {
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(
