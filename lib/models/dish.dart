@@ -53,6 +53,17 @@ class Dish {
   /// Vision AI confidence score (0.0–1.0) from identification.
   final double? confidence;
 
+  /// Effective price for cash calculations (defaults to 100 if not yet fetched).
+  int get effectivePrice => price ?? 100;
+
+  /// Human-readable rarity label derived from [rarityTier].
+  String get rarityLabel => switch (rarityTier) {
+        1 => 'common',
+        2 => 'uncommon',
+        3 => 'rare',
+        _ => 'legendary',
+      };
+
   /// Create a [Dish] from the structured JSON returned by
   /// `GuideService.identifyDishStructured()`.
   factory Dish.fromIdentification(Map<String, dynamic> json) {
@@ -107,6 +118,60 @@ class Dish {
     );
   }
 
+  /// Create a [Dish] from JSON (SharedPreferences persistence).
+  factory Dish.fromJson(Map<String, dynamic> json) => Dish(
+        varietyId: json['variety_id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        regionalStyle: json['regional_style'] as String? ?? '',
+        brothBase: json['broth_base'] as String? ?? '',
+        rarityTier: json['rarity_tier'] as int? ?? 1,
+        price: json['price'] as int?,
+        playerPhotoPath: json['player_photo_path'] as String?,
+        regionalLore: json['regional_lore'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'variety_id': varietyId,
+        'name': name,
+        'regional_style': regionalStyle,
+        'broth_base': brothBase,
+        'rarity_tier': rarityTier,
+        if (price != null) 'price': price,
+        if (playerPhotoPath != null) 'player_photo_path': playerPhotoPath,
+        if (regionalLore != null) 'regional_lore': regionalLore,
+      };
+
   @override
   String toString() => 'Dish($name, $regionalStyle, tier=$rarityTier)';
+
+  /// Pre-seeded starter bowls for fallback when camera fails.
+  static final List<Dish> starterBowls = [
+    Dish(
+      varietyId: 'tonkotsu_001',
+      name: 'Hakata Tonkotsu',
+      regionalStyle: 'Kyushu',
+      brothBase: 'tonkotsu',
+      rarityTier: 1,
+      price: 120,
+      regionalLore: 'Creamy pork bone broth simmered for hours.',
+    ),
+    Dish(
+      varietyId: 'shoyu_001',
+      name: 'Tokyo Shoyu',
+      regionalStyle: 'Kanto',
+      brothBase: 'shoyu',
+      rarityTier: 1,
+      price: 100,
+      regionalLore: 'Crystal-clear soy broth, the refined classic.',
+    ),
+    Dish(
+      varietyId: 'miso_001',
+      name: 'Sapporo Miso',
+      regionalStyle: 'Hokkaido',
+      brothBase: 'miso',
+      rarityTier: 1,
+      price: 110,
+      regionalLore: 'Rich amber miso with corn and melting butter.',
+    ),
+  ];
 }

@@ -82,6 +82,11 @@ final chefProvider = NotifierProvider<ChefNotifier, ChefProfile>(
   ChefNotifier.new,
 );
 
+/// Cook time in seconds for the current chef skill level.
+final chefCookTimeProvider = Provider<int>(
+  (ref) => ref.watch(chefProvider).cookTimeSeconds,
+);
+
 // ─── Menu (discovered dishes) ───
 
 /// Menu notifier — manages the player's discovered dish collection.

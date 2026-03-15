@@ -6,17 +6,98 @@ See [flame_implementation.md](flame_implementation.md) for full architecture and
 
 ---
 
+## Implementation Progress (feature/flame-game branch)
+
+### COMPLETED — Foundation Layer
+
+| What | Files Created | Notes |
+|------|--------------|-------|
+| Data models | `lib/models/dish.dart`, `skill_level.dart`, `chef_profile.dart`, `customer_order.dart`, `day_summary.dart`, `ramen_variety.dart` | All models per flame_implementation.md spec. `Dish` has `starterBowls` fallback, `DaySummary` has 3-factor compute factory, `SkillLevel` enum has `next` getter + `upgradeCost`. |
+| Theme | `lib/theme/app_theme.dart`, `game_colors.dart` | Dark theme + game palette constants. |
+| Riverpod providers | `lib/providers/cash_provider.dart`, `chef_provider.dart`, `game_state_provider.dart`, `menu_provider.dart`, `customer_queue_provider.dart`, `region_provider.dart`, `upgrade_provider.dart` | All use Riverpod 3.x `Notifier` API (not deprecated `StateNotifier`). |
+| Dependencies | `shared_preferences`, `flutter_riverpod` added to pubspec.yaml | `flame_riverpod` v5.5.3 already present. |
+
+### NEXT — Pick Up Here
+
+Build these in order. Each task references the architecture in `flame_implementation.md`.
+
+**1. GourmetGame + main.dart** (`lib/game/gourmet_game.dart`, update `lib/main.dart`)
+- Replace current `main.dart` with `ProviderScope` → `MaterialApp` (theme only) → `RiverpodAwareGameWidget`
+- `GourmetGame extends FlameGame with RiverpodGameMixin` — register all overlay builders
+- Check `flame_riverpod` v5 API: use `RiverpodAwareGameWidget`, `RiverpodGameMixin`, `RiverpodComponentMixin`
+- Overlay keys: `'hud'`, `'camera'`, `'map_info'`, `'day_summary'`, `'upgrade'`, `'sous_chef_bubble'`
+- Game starts by loading `MapWorld` (assume FTUE complete)
+
+**2. ShopWorld** (`lib/game/worlds/shop_world.dart`)
+- Extends `World` — colored rectangle kitchen background (placeholder)
+- On mount: show `'hud'` overlay, create `ChefEntity`, `CustomerQueueComponent`, `ServiceTimerComponent`, `OrderDispatcher`
+- On remove: hide `'hud'` overlay
+
+**3. Chef mechanics** (`lib/game/components/chef/`)
+- `chef_entity.dart` — `PositionComponent` with `RiverpodComponentMixin`, holds cook queue
+- `cook_behavior.dart` — `Behavior<ChefEntity>` state machine: Available → Cooking → Plating → Available
+- `progress_bar_component.dart` — `PositionComponent` using `RectangleComponent` + Paint (not sprites)
+- On cook complete: `ref.read(cashProvider.notifier).earn(dish.price)`
+
+**4. Customer system** (`lib/game/components/customer/`)
+- `customer_entity.dart` — `PositionComponent` with `TapCallbacks`, holds `CustomerOrder`
+- `wait_behavior.dart` — `Behavior<CustomerEntity>` patience countdown
+- `speech_bubble_component.dart` — `PositionComponent` with dish name text
+- Tap speech bubble → assign order to chef queue via `OrderDispatcher`
+
+**5. Kitchen infrastructure** (`lib/game/components/kitchen/`)
+- `order_dispatcher.dart` — routes tapped orders to chef queue
+- `service_timer_component.dart` — 240s countdown, pause/resume support
+
+**6. MapWorld** (`lib/game/worlds/map_world.dart`, `lib/game/components/map/`)
+- 4 `RegionNode` components with `TapCallbacks`, positioned using `Region.mapPosition`
+- Tap region → show `'map_info'` overlay
+- "Enter Shop" CTA → swap to `ShopWorld`
+
+**7. Overlays** (`lib/overlays/`)
+- `hud_overlay.dart` — `ConsumerWidget`: cash balance, day timer, bottom bar (camera + map icons)
+- `camera_overlay.dart` — reuses `CameraScreen` behavior (image_picker + GuideService + scanning animation), adds dish to `menuProvider`
+- `map_info_overlay.dart` — region detail bottom sheet with "Enter Shop" CTA
+- `day_summary_overlay.dart` — star rating display from `DaySummary`
+- `upgrade_overlay.dart` — chef skill upgrade with cash gating
+
+**8. API + persistence** (`lib/services/`)
+- `ramen_api_service.dart` — GET /ramen/varieties, GET /ramen/{id}/price
+- `local_storage_service.dart` — SharedPreferences for cash, chef skill, day number
+- `lib/fixtures/fallback_varieties.json` — offline API fallback
+
+**9. Day lifecycle wiring**
+- Pre-day: seed customers from menu, populate ShopWorld
+- Service: 240s timer, spawn customers ~30s apart
+- Post-day: compute DaySummary, show overlays, upgrades, transition to MapWorld
+
+**10. Cleanup**
+- Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/`
+- Remove `flame_tiled`, `flame_forge2d`, `flame_rive` from pubspec (they're not in pubspec currently — verify)
+- Run `flutter analyze` and fix all issues
+
+### Key Implementation Notes
+
+- **Riverpod version**: Project uses `flutter_riverpod: ^3.3.1` — use `Notifier`/`NotifierProvider`, NOT deprecated `StateNotifier`
+- **flame_riverpod v5**: Use `RiverpodAwareGameWidget`, `RiverpodGameMixin`, `RiverpodComponentMixin`
+- **No sprites yet**: Use colored rectangles as placeholders for all entities (chef, customers, kitchen BG)
+- **FTUE skipped**: Another developer handles FTUE. Game starts at MapWorld.
+- **Single chef**: Ken only, no hiring. `ChefProfile.ken` starts at `SkillLevel.trained` (45s)
+- **Mechanical customers**: Random dish + patience timer. No names/personality/LLM.
+
+---
+
 ## Tier 0 — Flame Migration *(Do First)*
 
-| Task | Notes | Est. |
-|------|-------|------|
-| Replace `main.dart` with Flame entry point | `ProviderScope` → `MaterialApp` (theme only) → `RiverpodAwareGameWidget`. Remove all Navigator routes. | 2h |
-| Create `GourmetGame` with `RiverpodGameMixin` | Register all Flutter overlays. World-swapping for scene transitions (FtueWorld, MapWorld, ShopWorld). | 3h |
-| Migrate state management to `flame_riverpod` | Create Riverpod providers: `cashProvider`, `chefProvider` (single chef — Ken), `gameStateProvider`, `menuProvider`, `ftueProvider`, `regionProvider`. All Flame components use `RiverpodComponentMixin`. | 4h |
-| Remove old Flutter screens and widgets | Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/`. Preserve service and model files. | 1h |
-| Remove unused Flame packages | Remove `flame_tiled`, `flame_forge2d`, `flame_rive` from `pubspec.yaml`. Run `flutter pub get`. | 0.5h |
-| Implement `Dish` model per API contract | Fields: `varietyId`, `name`, `regionalStyle`, `brothBase`, `rarityTier`, `price`, `playerPhotoPath`, `regionalLore`. Must match `GET /ramen/varieties` response structure from prototype Section 8. | 1h |
-| Update `GuideService.identifyDish()` to return structured JSON | Currently returns free-text string. Must return JSON matching Dish model fields: `{ ramen_name, regional_style, broth_base, regional_lore, confidence_0_to_1 }` per prototype Section 11.1. | 2h |
+| Task | Notes | Status |
+|------|-------|--------|
+| ~~Replace `main.dart` with Flame entry point~~ | — | **Next up** |
+| ~~Create `GourmetGame` with `RiverpodGameMixin`~~ | — | **Next up** |
+| ~~Migrate state management to `flame_riverpod`~~ | Providers created, need to wire into Flame components | **Partial** |
+| Remove old Flutter screens and widgets | Delete `lib/screens/`, `lib/widgets/`, `lib/deprecated/`. Preserve service and model files. | Pending |
+| Remove unused Flame packages | Verify which are still in pubspec. | Pending |
+| ~~Implement `Dish` model per API contract~~ | — | **Done** |
+| Update `GuideService.identifyDish()` to return structured JSON | Currently returns free-text string. Must return JSON matching Dish model fields. | Pending |
 
 ---
 
