@@ -229,12 +229,12 @@ class SeedanceService {
       return 'Japanese sous chef preparing $dishName, working with '
           '$ingredientList. Ukiyo-e woodblock print style, flat bold '
           'colours, dramatic composition, warm ink tones, traditional '
-          'Japanese kitchen.';
+          'Japanese kitchen. All speech, text, and audio must be in English.';
     }
 
     return 'Japanese sous chef carefully preparing $dishName, '
         'working with $ingredientList, plating at a clean wooden counter. '
         'Cinematic food documentary, warm kitchen lighting, slow deliberate '
-        'movements, close-up detail shots.';
+        'movements, close-up detail shots. All speech, text, and audio must be in English.';
   }
 }
