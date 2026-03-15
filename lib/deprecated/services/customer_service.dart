@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../models/customer.dart';
-import '../models/recipe.dart';
+import '../../models/recipe.dart';
 
 class CustomerService {
   static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
