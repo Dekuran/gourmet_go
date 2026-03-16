@@ -27,8 +27,8 @@ class HudOverlay extends ConsumerWidget {
           children: [
             // ── Cash ──
             _HudChip(
-              icon: '💰',
-              label: '¥$cash',
+              icon: '🪙',
+              label: '$cash credits',
               color: Colors.amber,
             ),
             const SizedBox(width: 8),

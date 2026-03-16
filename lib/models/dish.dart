@@ -40,7 +40,7 @@ class Dish {
   /// Rarity tier: 1 (common) – 4 (legendary).
   final int rarityTier;
 
-  /// Price in yen, fetched from `GET /ramen/{variety_id}/price`.
+  /// Price in credits, fetched from `GET /ramen/{variety_id}/price`.
   /// Null until the price API responds.
   final int? price;
 

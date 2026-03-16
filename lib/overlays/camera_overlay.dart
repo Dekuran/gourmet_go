@@ -111,7 +111,7 @@ class _CameraOverlayState extends ConsumerState<CameraOverlay> {
         await FtueService.instance.saveStep(FtueStep.dishReveal);
       }
 
-      _log.logSuccess('Camera', 'identify', '${pricedDish.name} (¥$price)');
+      _log.logSuccess('Camera', 'identify', '${pricedDish.name} ($price credits)');
 
       // 7. Transition to dish reveal
       if (mounted) {

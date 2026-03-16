@@ -24,7 +24,7 @@ enum SkillLevel {
   /// How long this chef takes to cook one bowl, in seconds.
   final int cookTimeSeconds;
 
-  /// Cost in yen to upgrade to this level. 0 for the starting level.
+  /// Cost in credits to upgrade to this level. 0 for the starting level.
   final int upgradeCost;
 
   /// Human-readable label for UI.

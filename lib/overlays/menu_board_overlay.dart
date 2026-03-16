@@ -210,7 +210,7 @@ class _MenuBoardOverlayState extends ConsumerState<MenuBoardOverlay> {
             children: [
               _chip('Region', dish.regionalStyle),
               _chip('Broth', dish.brothBase),
-              _chip('Price', dish.price == null ? 'TBD' : '¥${dish.price}'),
+              _chip('Price', dish.price == null ? 'TBD' : '${dish.price}c'),
               _chip('Videos', '${dish.recipeVideoUrls.length}'),
             ],
           ),

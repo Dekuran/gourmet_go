@@ -600,7 +600,7 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
           if (dish.price != null) ...[
             const SizedBox(width: 8),
             Text(
-              '¥${dish.price}',
+              '${dish.price} credits',
               style: const TextStyle(
                 color: Colors.amber,
                 fontSize: 18,

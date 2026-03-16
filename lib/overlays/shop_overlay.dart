@@ -54,7 +54,7 @@ class ShopOverlay extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  _StatChip(icon: '💰', value: '¥$cash'),
+                  _StatChip(icon: '🪙', value: '$cash credits'),
                   const SizedBox(width: 8),
                   _StatChip(icon: '📅', value: 'Day $day'),
                 ],
@@ -382,7 +382,7 @@ class _MenuDishCard extends StatelessWidget {
           // Price
           if (dish.price != null)
             Text(
-              '¥${dish.price}',
+              '${dish.price}c',
               style: const TextStyle(
                 color: Colors.amber,
                 fontSize: 16,

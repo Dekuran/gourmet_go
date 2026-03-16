@@ -45,10 +45,10 @@ class CashNotifier extends Notifier<int> {
   @override
   int build() => 0;
 
-  /// Add yen earned from serving a dish.
+  /// Add credits earned from serving a dish.
   void earn(int amount) => state = state + amount;
 
-  /// Spend yen on an upgrade. Returns `false` if insufficient funds.
+  /// Spend credits on an upgrade. Returns `false` if insufficient funds.
   bool spend(int amount) {
     if (state < amount) return false;
     state = state - amount;
@@ -59,7 +59,7 @@ class CashNotifier extends Notifier<int> {
   void reset() => state = 0;
 }
 
-/// Player's cash balance in yen.
+/// Player's cash balance in credits.
 final cashProvider = NotifierProvider<CashNotifier, int>(
   CashNotifier.new,
 );
