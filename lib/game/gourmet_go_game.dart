@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../services/ftue_service.dart';
 import 'scenes/ftue_scene.dart';
-import 'scenes/map_scene.dart';
+import 'scenes/shop_scene.dart';
 
 /// All overlay identifiers used by the Flame [GameWidget].
 ///
@@ -28,6 +28,9 @@ enum GameOverlay {
 
   /// Heads-up display: cash, day, star rating.
   hud,
+
+  /// Shop / kitchen overlay — menu, service start, travel.
+  shop,
 
   /// Starter bowl picker (FTUE fallback when camera unavailable).
   starterPicker,
@@ -83,10 +86,10 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
     final ftueComplete = await FtueService.instance.isComplete();
 
     if (ftueComplete) {
-      // Returning player → go straight to map.
-      developer.log('FTUE complete — starting MapScene', name: 'gourmet_go.game');
-      world = MapScene();
-      currentScene = 'map';
+      // Returning player → go straight to shop (restaurant kitchen).
+      developer.log('FTUE complete — starting ShopScene', name: 'gourmet_go.game');
+      world = ShopScene();
+      currentScene = 'shop';
     } else {
       // First launch → start FTUE (dark kitchen + sous chef dialogue).
       developer.log('First launch — starting FtueScene', name: 'gourmet_go.game');

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -122,7 +123,11 @@ class GameAssetService {
   /// `assets/images/` (Flame's default prefix).
   Future<ui.Image?> loadFlameImage(String assetPath) async {
     try {
-      return await Flame.images.load(assetPath);
+      final data = await rootBundle.load('assets/$assetPath');
+      final bytes = data.buffer.asUint8List();
+      final completer = Completer<ui.Image>();
+      ui.decodeImageFromList(bytes, completer.complete);
+      return completer.future;
     } catch (e) {
       _log.logError('GameAsset', 'loadFlameImage', '$assetPath: $e');
       return null;

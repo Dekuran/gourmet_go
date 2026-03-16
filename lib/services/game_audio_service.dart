@@ -126,6 +126,23 @@ class GameAudioService {
 
   Future<void> stopVoice() => _voicePlayer.stop();
 
+  /// Play a pre-baked voice asset from `assets/audio/`.
+  ///
+  /// Used for FTUE dialogue where TTS was generated ahead of time via
+  /// [generate_ftue_dialogue_audio.sh]. Falls back to [speakLine] if the
+  /// asset file fails to load.
+  Future<bool> playVoiceAsset(String filename) async {
+    if (_muted) return false;
+    try {
+      await _voicePlayer.stop();
+      await _voicePlayer.play(AssetSource(filename));
+      return true;
+    } catch (e) {
+      _log.logError('GameAudio', 'playVoiceAsset($filename)', '$e');
+      return false;
+    }
+  }
+
   // ── Sound Generation (ElevenLabs) ─────────────────────────────────────────
 
   Future<Uint8List?> generateSfx(
