@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game/gourmet_go_game.dart';
+import '../gourmet_go_app.dart';
 import '../providers/game_providers.dart';
 import '../services/debug_logger.dart';
 import '../services/ftue_service.dart';
@@ -35,6 +36,18 @@ class _CameraOverlayState extends ConsumerState<CameraOverlay> {
 
   bool _processing = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    GourmetGoApp.unlockOrientation();
+  }
+
+  @override
+  void dispose() {
+    GourmetGoApp.lockToLandscape();
+    super.dispose();
+  }
 
   Future<void> _captureAndIdentify(PhotoMode mode) async {
     setState(() {
