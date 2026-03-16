@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game/gourmet_go_game.dart';
+import '../game/worlds/map_world.dart';
+import '../game/worlds/shop_world.dart';
 import '../models/dish.dart';
 import '../providers/game_providers.dart';
 import '../services/game_asset_service.dart';
@@ -52,7 +54,7 @@ class ShopOverlay extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  _StatChip(icon: '💰', value: '¥$cash'),
+                  _StatChip(icon: '🪙', value: '$cash credits'),
                   const SizedBox(width: 8),
                   _StatChip(icon: '📅', value: 'Day $day'),
                 ],
@@ -78,7 +80,7 @@ class ShopOverlay extends ConsumerWidget {
                     'assets/${GameAssetService.sousChefExcited}',
                     height: 60,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (context, error, stackTrace) =>
                         const Text('🧑‍🍳', style: TextStyle(fontSize: 36)),
                   ),
                   const SizedBox(width: 12),
@@ -117,11 +119,25 @@ class ShopOverlay extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    '${menu.length} dish${menu.length == 1 ? '' : 'es'}',
-                    style: const TextStyle(
-                      color: Colors.white38,
-                      fontSize: 13,
+                   Text(
+                     '${menu.length} dish${menu.length == 1 ? '' : 'es'}',
+                     style: const TextStyle(
+                       color: Colors.white38,
+                       fontSize: 13,
+                     ),
+                   ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: menu.isEmpty
+                        ? null
+                        : () => game.showOverlay(GameOverlay.menuBoard),
+                    icon: const Icon(Icons.menu_book_rounded, size: 16),
+                    label: const Text('Open Menu'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFE8A0BF),
+                      side: BorderSide(
+                        color: const Color(0xFFE8A0BF).withAlpha(100),
+                      ),
                     ),
                   ),
                 ],
@@ -136,10 +152,13 @@ class ShopOverlay extends ConsumerWidget {
                   ? _buildEmptyMenu()
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: menu.length,
-                      itemBuilder: (context, index) =>
-                          _MenuDishCard(dish: menu[index]),
-                    ),
+                          itemCount: menu.length,
+                          itemBuilder: (context, index) =>
+                          _MenuDishCard(
+                            dish: menu[index],
+                            onInspect: () => game.showOverlay(GameOverlay.menuBoard),
+                          ),
+                     ),
             ),
 
             // ── Action buttons ──
@@ -149,13 +168,13 @@ class ShopOverlay extends ConsumerWidget {
                 children: [
                   // Start service day
                   SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: menu.isEmpty ? null : () {
-                        // TODO: Start service day
-                        GameAudioService().playSfx(GameSfx.doorOpen);
-                      },
+                   width: double.infinity,
+                   height: 52,
+                   child: ElevatedButton(
+                     onPressed: menu.isEmpty ? null : () {
+                       GameAudioService().playSfx(GameSfx.doorOpen);
+                       game.switchScene(ShopWorld(game: game), 'service');
+                     },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFE8A0BF),
                         foregroundColor: const Color(0xFF3D2B1F),
@@ -184,7 +203,7 @@ class ShopOverlay extends ConsumerWidget {
                           child: OutlinedButton.icon(
                             onPressed: () {
                               GameAudioService().playSfx(GameSfx.mapTap);
-                              // TODO: Navigate to map
+                              game.switchScene(MapWorld(game: game), 'map');
                             },
                             icon: const Text('🗾', style: TextStyle(fontSize: 16)),
                             label: const Text('Travel'),
@@ -295,9 +314,10 @@ class _StatChip extends StatelessWidget {
 }
 
 class _MenuDishCard extends StatelessWidget {
-  const _MenuDishCard({required this.dish});
+  const _MenuDishCard({required this.dish, required this.onInspect});
 
   final Dish dish;
+  final VoidCallback onInspect;
 
   @override
   Widget build(BuildContext context) {
@@ -332,8 +352,8 @@ class _MenuDishCard extends StatelessWidget {
             'assets/${GameAssetService.bowlSprite(dish.brothBase)}',
             width: 56,
             height: 56,
-            errorBuilder: (_, __, ___) =>
-                const Text('🍜', style: TextStyle(fontSize: 36)),
+              errorBuilder: (context, error, stackTrace) =>
+                 const Text('🍜', style: TextStyle(fontSize: 36)),
           ),
           const SizedBox(width: 14),
 
@@ -362,13 +382,18 @@ class _MenuDishCard extends StatelessWidget {
           // Price
           if (dish.price != null)
             Text(
-              '¥${dish.price}',
+              '${dish.price}c',
               style: const TextStyle(
                 color: Colors.amber,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: onInspect,
+            child: const Text('Inspect'),
+          ),
         ],
       ),
     );

@@ -199,11 +199,7 @@ class _FtueDialogueOverlayState extends State<FtueDialogueOverlay>
 
     // Play pre-baked TTS audio asset (no CORS issues, no API call needed).
     // Falls back to runtime TTS if asset fails.
-    final ok = await _audio.playVoiceAsset(line.audioFile);
-    if (!ok) {
-      // Fallback: runtime TTS via ElevenLabs
-      await _audio.speakLine(line.text);
-    }
+    await _audio.speakLine(line.text);
     if (mounted) setState(() => _speaking = false);
   }
 

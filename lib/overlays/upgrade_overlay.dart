@@ -172,7 +172,7 @@ class _UpgradeSection extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Cost: ¥$cost',
+              'Cost: $cost credits',
               style: const TextStyle(
                 color: Colors.amber,
                 fontSize: 16,
@@ -181,7 +181,7 @@ class _UpgradeSection extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             Text(
-              'Balance: ¥$cash',
+              'Balance: $cash credits',
               style: const TextStyle(color: Colors.white54, fontSize: 14),
             ),
           ],
@@ -198,7 +198,7 @@ class _UpgradeSection extends StatelessWidget {
             ),
           ),
           child: Text(
-            canUpgrade ? 'Upgrade Ken — ¥$cost' : 'Not enough ¥',
+            canUpgrade ? 'Upgrade Ken — $cost credits' : 'Not enough credits',
             style: const TextStyle(
               color: Colors.black,
               fontSize: 15,

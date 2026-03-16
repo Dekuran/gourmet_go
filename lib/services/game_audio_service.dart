@@ -26,6 +26,9 @@ class GameAudioService {
   bool _muted = false;
   bool get muted => _muted;
 
+  static const double _bgmVolume = 0.08;
+  static const double _voiceVolume = 1.0;
+
   static const String _elevenLabsBase = 'https://api.elevenlabs.io/v1';
   static const String _voiceId = 'CwhRBWXzGAHq8TQ4Fs17';
 
@@ -39,6 +42,7 @@ class GameAudioService {
     if (_muted) return;
     try {
       await FlameAudio.bgm.stop();
+      FlameAudio.bgm.audioPlayer.setVolume(_bgmVolume);
       await FlameAudio.bgm.play('music_ftue_intro.mp3');
     } catch (e) {
       _log.logError('GameAudio', 'playFtueIntroMusic', '$e');
@@ -50,6 +54,7 @@ class GameAudioService {
     if (_muted) return;
     try {
       await FlameAudio.bgm.stop();
+      FlameAudio.bgm.audioPlayer.setVolume(_bgmVolume);
       await FlameAudio.bgm.play('music_kitchen.mp3');
     } catch (e) {
       _log.logError('GameAudio', 'playKitchenMusic', '$e');
@@ -60,6 +65,7 @@ class GameAudioService {
     if (_muted) return;
     try {
       await FlameAudio.bgm.stop();
+      FlameAudio.bgm.audioPlayer.setVolume(_bgmVolume);
       await FlameAudio.bgm.play('music_map.mp3');
     } catch (e) {
       _log.logError('GameAudio', 'playMapMusic', '$e');
@@ -70,6 +76,7 @@ class GameAudioService {
     if (_muted) return;
     try {
       await FlameAudio.bgm.stop();
+      FlameAudio.bgm.audioPlayer.setVolume(_bgmVolume);
       await FlameAudio.bgm.play('music_shop.mp3');
     } catch (e) {
       _log.logError('GameAudio', 'playShopMusic', '$e');
@@ -77,6 +84,22 @@ class GameAudioService {
   }
 
   Future<void> stopMusic() => FlameAudio.bgm.stop();
+
+  Future<void> duckMusicForVoice() async {
+    try {
+      await FlameAudio.bgm.audioPlayer.setVolume(_bgmVolume * 0.35);
+    } catch (e) {
+      _log.logError('GameAudio', 'duckMusicForVoice', '$e');
+    }
+  }
+
+  Future<void> restoreMusicVolume() async {
+    try {
+      await FlameAudio.bgm.audioPlayer.setVolume(_bgmVolume);
+    } catch (e) {
+      _log.logError('GameAudio', 'restoreMusicVolume', '$e');
+    }
+  }
 
   // ── SFX ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +115,7 @@ class GameAudioService {
   Future<bool> speakLine(String text) async {
     if (_elevenKey.isEmpty) return false;
     try {
+      await duckMusicForVoice();
       final response = await http.post(
         Uri.parse('$_elevenLabsBase/text-to-speech/$_voiceId'),
         headers: {
@@ -111,14 +135,18 @@ class GameAudioService {
       final contentType = response.headers['content-type'] ?? '';
       if (response.statusCode == 200 && contentType.contains('audio')) {
         await _voicePlayer.stop();
+        await _voicePlayer.setVolume(_voiceVolume);
         await _voicePlayer.play(
           BytesSource(response.bodyBytes, mimeType: 'audio/mpeg'),
         );
+        _voicePlayer.onPlayerComplete.first.then((_) => restoreMusicVolume());
         return true;
       }
+      await restoreMusicVolume();
       _log.logError('GameAudio', 'speakLine', 'HTTP ${response.statusCode}');
       return false;
     } catch (e) {
+      await restoreMusicVolume();
       _log.logError('GameAudio', 'speakLine', '$e');
       return false;
     }
@@ -134,10 +162,14 @@ class GameAudioService {
   Future<bool> playVoiceAsset(String filename) async {
     if (_muted) return false;
     try {
+      await duckMusicForVoice();
       await _voicePlayer.stop();
+      await _voicePlayer.setVolume(_voiceVolume);
       await _voicePlayer.play(AssetSource(filename));
+      _voicePlayer.onPlayerComplete.first.then((_) => restoreMusicVolume());
       return true;
     } catch (e) {
+      await restoreMusicVolume();
       _log.logError('GameAudio', 'playVoiceAsset($filename)', '$e');
       return false;
     }
