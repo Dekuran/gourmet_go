@@ -1,9 +1,6 @@
-import 'dart:developer' as developer;
-
 import 'package:flame_riverpod/flame_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'game/gourmet_go_game.dart';
 import 'overlays/camera_overlay.dart';
@@ -52,19 +49,11 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
       GlobalKey<RiverpodAwareGameWidgetState<GourmetGoGame>>();
 
   bool _showApiTest = false;
-  late final Future<void> _bootstrap;
 
   @override
   void initState() {
     super.initState();
     _game = GourmetGoGame();
-    _bootstrap = _init();
-  }
-
-  Future<void> _init() async {
-    await GourmetGoApp.lockToLandscape();
-    await dotenv.load(fileName: '.env');
-    developer.log('bootstrap complete', name: 'gourmet_go');
   }
 
   @override
@@ -86,20 +75,7 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
         ),
         useMaterial3: true,
       ),
-      home: FutureBuilder<void>(
-        future: _bootstrap,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const LoadingScreen();
-          }
-          if (snapshot.hasError) {
-            return ErrorScreen(error: snapshot.error!);
-          }
-          return _showApiTest
-              ? const ApiTestScreen()
-              : _buildGameView();
-        },
-      ),
+      home: _showApiTest ? const ApiTestScreen() : _buildGameView(),
     );
   }
 
