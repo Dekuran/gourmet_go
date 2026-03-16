@@ -133,7 +133,7 @@ Rules:
         {
           'type': 'text',
           'text':
-              'Look at this bowl of ramen. Tell me what style it is, what region of Japan it comes from, and what makes it special. Be theatrical and passionate — this is a discovery moment for your head chef.',
+              'Look at this bowl of ramen. In 2-3 short sentences, name the style, the region of Japan it comes from, and one thing that makes it special. Be warm and passionate but brief — this is a discovery moment.',
         },
       ],
     });

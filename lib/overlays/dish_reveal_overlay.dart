@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
 import '../game/gourmet_go_game.dart';
-import '../game/scenes/map_scene.dart';
+import '../game/scenes/ftue_scene.dart';
 import '../models/dish.dart';
 import '../models/recipe.dart';
 import '../providers/game_providers.dart';
@@ -20,15 +20,13 @@ import 'ftue_shared_state.dart';
 
 /// Dish reveal overlay — the AI showcase moment.
 ///
-/// After camera identification, this overlay orchestrates:
-/// 1. Animated dish card with name, region, rarity
-/// 2. GuideService description (identifyDish — theatrical prose + TTS)
-/// 3. GuideService recipe generation (uses conversation context from #2)
-/// 4. TripoService 3D model generation (background polling)
-/// 5. SeedanceService cooking video generation (background polling)
+/// Multi-phase visual novel reveal:
+///   Phase 1: Cooking video plays + sous chef describes the dish (short)
+///   Phase 2: Dish card animates in with recipe results
+///   Phase 3: "Added to Menu!" — tap to go to restaurant kitchen
 ///
-/// Description → recipe runs sequentially (recipe needs conversation context).
-/// Tripo + Seedance fire independently in parallel.
+/// Kitchen background, sous chef portrait, video window.
+/// Transitions to the kitchen/restaurant view (NOT map) after FTUE.
 class DishRevealOverlay extends ConsumerStatefulWidget {
   const DishRevealOverlay({required this.game, super.key});
 
@@ -39,7 +37,7 @@ class DishRevealOverlay extends ConsumerStatefulWidget {
 }
 
 class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static final _log = DebugLogger.instance;
   static final _audio = GameAudioService();
   static final _guide = GuideService();
@@ -51,23 +49,27 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
 
   // AI pipeline state
   Recipe? _recipe;
-  String? _recipeError;
   bool _recipeLoading = true;
 
   String? _glbUrl;
-  String? _tripoStatus;
   bool _tripoLoading = true;
 
   String? _videoUrl;
-  String? _seedanceStatus;
   bool _seedanceLoading = true;
+
+  // Video player (shows pre-seeded video, then AI-generated video)
   VideoPlayerController? _videoController;
 
-  // Description from sous chef
-  String? _description;
-  bool _descriptionLoading = true;
+  // Sous chef dialogue state
+  String _chefLine = 'Let me take a closer look at this bowl...';
+  SousChefMood _chefMood = SousChefMood.thinking;
 
+  // Reveal phase: 0=loading, 1=dish card visible, 2=all done
+  int _phase = 0;
+
+  // Animations
   late AnimationController _revealAnim;
+  late AnimationController _pulseAnim;
 
   @override
   void initState() {
@@ -78,7 +80,15 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
       duration: const Duration(milliseconds: 800),
     )..forward();
 
+    _pulseAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
     _audio.playSfx(GameSfx.dishCardReveal);
+
+    // Start fallback video
+    _initFallbackVideo();
 
     if (_dish != null) {
       _kickOffPipeline();
@@ -88,76 +98,142 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
   @override
   void dispose() {
     _revealAnim.dispose();
+    _pulseAnim.dispose();
     _videoController?.dispose();
     super.dispose();
   }
 
-  /// Fire AI calls — Tripo + Seedance in parallel, description → recipe sequentially.
+  // ── Video Management ──
+
+  /// Play a pre-seeded cooking video while AI works.
+  void _initFallbackVideo() {
+    try {
+      _videoController = VideoPlayerController.asset(
+        'assets/videos/tonkotsu_broth_pour.mp4',
+      )
+        ..setLooping(true)
+        ..setVolume(0.3)
+        ..initialize().then((_) {
+          if (mounted) {
+            setState(() {});
+            _videoController!.play();
+          }
+        }).catchError((Object e) {
+          _log.logError('DishReveal', 'fallback video', '$e');
+        });
+    } catch (e) {
+      _log.logError('DishReveal', 'fallback video init', '$e');
+    }
+  }
+
+  /// Replace fallback video with AI-generated one.
+  void _switchToAiVideo(String url) {
+    _videoController?.dispose();
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(url))
+      ..setLooping(true)
+      ..setVolume(0.3)
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() {});
+          _videoController!.play();
+        }
+      });
+  }
+
+  // ── AI Pipeline ──
+
   void _kickOffPipeline() {
     final dish = _dish!;
     final photoBytes = FtueSharedState.instance.lastPhotoBytes;
 
-    // 1. 3D model via Tripo (needs photo bytes) — independent
+    // 1. 3D model via Tripo — independent
     if (photoBytes != null) {
       _generate3DModel(photoBytes);
     } else {
-      setState(() {
-        _tripoLoading = false;
-        _tripoStatus = 'No photo available';
-      });
+      setState(() => _tripoLoading = false);
     }
 
     // 2. Cooking video via Seedance — independent
     _generateVideo(dish);
 
-    // 3. Description → recipe (sequential: recipe uses conversation context)
+    // 3. Description → recipe (sequential)
     _descriptionThenRecipe(dish, photoBytes);
   }
 
-  /// Sequentially: identifyDish (establishes conversation) → generateRecipe.
-  ///
-  /// [GuideService.generateRecipe] appends to the conversation started by
-  /// [GuideService.identifyDish], so the two calls must NOT be parallelised.
+  /// Short description → recipe.
   Future<void> _descriptionThenRecipe(Dish dish, Uint8List? photoBytes) async {
-    // ── Description (establishes conversation context) ──
+    // ── Description ──
     if (photoBytes != null) {
       try {
         final desc = await _guide.identifyDish(photoBytes);
+        // Truncate to 2 sentences for snappy display
+        final short = _shortenDescription(desc);
         if (mounted) {
           setState(() {
-            _description = desc;
-            _descriptionLoading = false;
+            _chefLine = short;
+            _chefMood = SousChefMood.excited;
           });
-          _audio.speakLine(desc);
+          _audio.speakLine(short);
         }
       } catch (e) {
         _log.logError('DishReveal', 'description', '$e');
-        if (mounted) setState(() => _descriptionLoading = false);
+        if (mounted) {
+          setState(() {
+            _chefLine = 'What a beautiful bowl! Classic ${dish.name}.';
+            _chefMood = SousChefMood.excited;
+          });
+        }
       }
     } else {
-      if (mounted) setState(() => _descriptionLoading = false);
+      if (mounted) {
+        setState(() {
+          _chefLine = '${dish.name}! A magnificent choice.';
+          _chefMood = SousChefMood.excited;
+        });
+      }
     }
 
-    // ── Recipe (requires conversation context from identifyDish) ──
+    // Show dish card
+    if (mounted) setState(() => _phase = 1);
+
+    // ── Recipe ──
     try {
       _log.logInfo('DishReveal', 'Generating recipe for ${dish.name}');
+      if (mounted) {
+        setState(() {
+          _chefLine = 'Working out the recipe...';
+          _chefMood = SousChefMood.thinking;
+        });
+      }
       final recipe = await _guide.generateRecipe();
       if (mounted) {
         setState(() {
           _recipe = recipe;
           _recipeLoading = false;
+          _chefLine = 'We did it! ${recipe.dishName} is now on your menu!';
+          _chefMood = SousChefMood.excited;
         });
         _log.logSuccess('DishReveal', 'recipe', recipe.dishName);
+        _checkAllDone();
       }
     } catch (e) {
       _log.logError('DishReveal', 'recipe', '$e');
       if (mounted) {
         setState(() {
           _recipeLoading = false;
-          _recipeError = '$e';
+          _chefLine = 'The recipe is ready! Let\'s add it to the menu.';
+          _chefMood = SousChefMood.neutral;
         });
+        _checkAllDone();
       }
     }
+  }
+
+  /// Truncate to first 2 sentences for snappy narration.
+  String _shortenDescription(String desc) {
+    final sentences = desc.split(RegExp(r'[.!?]\s+'));
+    if (sentences.length <= 2) return desc;
+    return '${sentences[0]}. ${sentences[1]}.';
   }
 
   void _generate3DModel(Uint8List photoBytes) {
@@ -171,46 +247,38 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
               setState(() {
                 _glbUrl = url;
                 _tripoLoading = false;
-                _tripoStatus = 'Complete!';
               });
               _log.logSuccess('DishReveal', '3D model', url);
+              _checkAllDone();
             }
           },
           onError: (err) {
             if (mounted) {
-              setState(() {
-                _tripoLoading = false;
-                _tripoStatus = 'Failed: $err';
-              });
+              setState(() => _tripoLoading = false);
+              _checkAllDone();
             }
           },
-          onStatus: (status) {
-            if (mounted) setState(() => _tripoStatus = status);
-          },
+          onStatus: (_) {},
         );
       });
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _tripoLoading = false;
-          _tripoStatus = 'Error: $e';
-        });
+        setState(() => _tripoLoading = false);
+        _checkAllDone();
       }
     }
   }
 
   void _generateVideo(Dish dish) {
-    final ingredients =
-        _recipe?.ingredients.map((i) => i.name).toList() ??
-        ['noodles', 'broth', 'chashu'];
-
     try {
-      _seedance.startGeneration(
+      _seedance
+          .startGeneration(
         'A master Japanese chef carefully preparing ${dish.name}, '
-        'working with ${ingredients.take(3).join(", ")}, plating at a clean wooden counter. '
-        'Dreamy anime-inspired aesthetic, soft pastel colours, warm golden lighting, '
-        'cinematic food documentary, slow deliberate movements, close-up detail shots.',
-      ).then((taskId) {
+        'plating at a clean wooden counter. '
+        'Dreamy anime aesthetic, soft pastel colours, warm golden lighting, '
+        'cinematic food documentary, slow movements, close-up shots.',
+      )
+          .then((taskId) {
         _log.logInfo('DishReveal', 'Seedance task: $taskId');
         _seedance.startPollingInBackground(
           taskId,
@@ -219,47 +287,42 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
               setState(() {
                 _videoUrl = url;
                 _seedanceLoading = false;
-                _seedanceStatus = 'Complete!';
               });
-              _initVideoPlayer(url);
+              _switchToAiVideo(url);
               _log.logSuccess('DishReveal', 'video', url);
+              _checkAllDone();
             }
           },
           onError: (err) {
             if (mounted) {
-              setState(() {
-                _seedanceLoading = false;
-                _seedanceStatus = 'Failed: $err';
-              });
+              setState(() => _seedanceLoading = false);
+              _checkAllDone();
             }
           },
-          onStatus: (status) {
-            if (mounted) setState(() => _seedanceStatus = status);
-          },
+          onStatus: (_) {},
         );
       });
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _seedanceLoading = false;
-          _seedanceStatus = 'Error: $e';
-        });
+        setState(() => _seedanceLoading = false);
+        _checkAllDone();
       }
     }
   }
 
-  void _initVideoPlayer(String url) {
-    _videoController = VideoPlayerController.networkUrl(Uri.parse(url))
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() {});
-          _videoController!.play();
-        }
+  void _checkAllDone() {
+    if (!_recipeLoading && !_tripoLoading && !_seedanceLoading) {
+      setState(() => _phase = 2);
+    } else if (!_recipeLoading) {
+      // Recipe done is enough to show continue button
+      setState(() {
+        if (_phase < 1) _phase = 1;
       });
+    }
   }
 
-  void _continueToMap() async {
-    // Mark FTUE complete if applicable
+  /// Transition to the restaurant kitchen (NOT the map).
+  void _continueToKitchen() async {
     final isFirstLaunch = await FtueService.instance.isFirstLaunch();
     if (isFirstLaunch) {
       await FtueService.instance.markComplete();
@@ -267,98 +330,335 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
       ref.invalidate(ftueCompleteProvider);
     }
 
-    // Clear shared state
     FtueSharedState.instance.clear();
 
     if (mounted) {
-      _audio.playSfx(GameSfx.mapPulse);
+      _audio.playSfx(GameSfx.cashDing);
       widget.game.hideOverlay(GameOverlay.dishReveal);
-      widget.game.switchScene(MapScene(), 'map');
-      ref.read(gamePhaseProvider.notifier).set(GamePhase.map);
+      // Go to kitchen scene (restaurant) — this is where the game loop runs.
+      // The FtueScene shows the kitchen background. We show the HUD overlay.
+      widget.game.switchScene(FtueScene(), 'kitchen');
+      widget.game.showOverlay(GameOverlay.hud);
+      ref.read(gamePhaseProvider.notifier).set(GamePhase.shop);
     }
   }
+
+  // ── Build ──
 
   @override
   Widget build(BuildContext context) {
     final dish = _dish;
     if (dish == null) {
-      return const Center(child: Text('No dish data', style: TextStyle(color: Colors.white)));
+      return const Center(
+        child: Text('No dish data', style: TextStyle(color: Colors.white)),
+      );
     }
 
     return AnimatedBuilder(
       animation: _revealAnim,
       builder: (context, child) {
-        return Opacity(
-          opacity: _revealAnim.value,
-          child: child,
-        );
+        return Opacity(opacity: _revealAnim.value, child: child);
       },
-      child: Container(
-        color: Colors.black.withAlpha(230),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── Header: Dish Card ──
-                _buildDishCard(dish),
-                const SizedBox(height: 16),
-
-                // ── Sous Chef Description ──
-                _buildSection(
-                  '🍜 The Master Says',
-                  _descriptionLoading,
-                  _description ?? 'Analysing this beautiful bowl...',
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Layer 1: Kitchen background ──
+          Image.asset(
+            'assets/sprites/kitchen_bg.png',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF1A0A05),
+                    Color(0xFF2D1508),
+                    Color(0xFF1A0A05),
+                  ],
                 ),
-                const SizedBox(height: 16),
+              ),
+            ),
+          ),
 
-                // ── Recipe ──
-                _buildRecipeSection(),
-                const SizedBox(height: 16),
+          // ── Layer 2: Dark overlay ──
+          Container(color: const Color.fromRGBO(0, 0, 0, 0.55)),
 
-                // ── 3D Model Status ──
-                _buildAiSection(
-                  '🧊 3D Model (Tripo)',
-                  _tripoLoading,
-                  _tripoStatus ?? 'Starting...',
-                  _glbUrl != null ? '✅ Ready' : null,
-                ),
-                const SizedBox(height: 16),
-
-                // ── Cooking Video ──
-                _buildVideoSection(),
-                const SizedBox(height: 24),
-
-                // ── Continue Button ──
-                SizedBox(
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: _continueToMap,
-                    icon: const Icon(Icons.map),
-                    label: const Text(
-                      'Explore Japan! 🗾',
-                      style: TextStyle(fontSize: 18),
+          // ── Layer 3: Video window (top area) ──
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            height: MediaQuery.of(context).size.height * 0.28,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Video content
+                  if (_videoController != null &&
+                      _videoController!.value.isInitialized)
+                    FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: _videoController!.value.size.width,
+                        height: _videoController!.value.size.height,
+                        child: VideoPlayer(_videoController!),
+                      ),
+                    )
+                  else
+                    Container(
+                      color: const Color(0xFF0A0A0A),
+                      child: const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('🍜', style: TextStyle(fontSize: 40)),
+                            SizedBox(height: 8),
+                            CircularProgressIndicator(
+                              color: Colors.deepOrange,
+                              strokeWidth: 2,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepOrange,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+
+                  // Border
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.deepOrange.withAlpha(80),
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-              ],
+
+                  // AI status badges (top-right)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _statusChip(
+                          '🎬 Video',
+                          _seedanceLoading,
+                          _videoUrl != null,
+                        ),
+                        const SizedBox(height: 4),
+                        _statusChip(
+                          '🧊 3D',
+                          _tripoLoading,
+                          _glbUrl != null,
+                        ),
+                        const SizedBox(height: 4),
+                        _statusChip(
+                          '📜 Recipe',
+                          _recipeLoading,
+                          _recipe != null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
+
+          // ── Layer 4: Dish card (slides in at phase 1) ──
+          if (_phase >= 1)
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.28 + 24,
+              left: 16,
+              right: 16,
+              child: _dishCard(dish),
+            ),
+
+          // ── Layer 5: Sous chef portrait ──
+          Positioned(
+            bottom: 200,
+            left: 8,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: Image.asset(
+                'assets/${GameAssetService.sousChefPortrait(_chefMood)}',
+                key: ValueKey(_chefMood),
+                height: 160,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox(
+                  height: 160,
+                  child: Center(
+                    child: Text('🧑‍🍳', style: TextStyle(fontSize: 80)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Layer 6: Dialogue + action box (bottom) ──
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xE6101020),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.deepOrange.withAlpha(100),
+                  width: 2,
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Chef name
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange.withAlpha(50),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'The Master 🍜',
+                        style: TextStyle(
+                          color: Colors.deepOrange,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Dialogue text
+                    Text(
+                      _chefLine,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        height: 1.5,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Continue button or loading
+                    if (!_recipeLoading)
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _continueToKitchen,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepOrange,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('🍜', style: TextStyle(fontSize: 18)),
+                              SizedBox(width: 8),
+                              Text(
+                                'Add to Menu & Open Shop!',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.deepOrange,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (context, child) {
+                              return Opacity(
+                                opacity: 0.5 + 0.5 * _pulseAnim.value,
+                                child: child,
+                              );
+                            },
+                            child: const Text(
+                              'AI is working its magic...',
+                              style: TextStyle(
+                                color: Colors.deepOrange,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDishCard(Dish dish) {
+  // ── Widget Helpers ──
+
+  Widget _statusChip(String label, bool loading, bool success) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withAlpha(180),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          const SizedBox(width: 4),
+          if (loading)
+            const SizedBox(
+              width: 10,
+              height: 10,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: Colors.deepOrange,
+              ),
+            )
+          else if (success)
+            const Icon(Icons.check_circle, color: Colors.green, size: 12)
+          else
+            const Icon(Icons.error_outline, color: Colors.orange, size: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _dishCard(Dish dish) {
     final rarityColor = switch (dish.rarityTier) {
       1 => Colors.grey.shade400,
       2 => Colors.blue.shade400,
@@ -375,269 +675,93 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
     };
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            rarityColor.withAlpha(60),
-            Colors.black.withAlpha(200),
+            rarityColor.withAlpha(50),
+            Colors.black.withAlpha(180),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: rarityColor.withAlpha(150), width: 2),
+        border: Border.all(color: rarityColor.withAlpha(120), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: rarityColor.withAlpha(40),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+        ],
       ),
-      child: Column(
+      child: Row(
         children: [
           // Bowl sprite
           Image.asset(
             'assets/${GameAssetService.bowlSprite(dish.brothBase)}',
-            width: 100,
-            height: 100,
-            errorBuilder: (_, __, ___) => const Text('🍜', style: TextStyle(fontSize: 60)),
+            width: 80,
+            height: 80,
+            errorBuilder: (_, __, ___) =>
+                const Text('🍜', style: TextStyle(fontSize: 50)),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(width: 16),
 
-          // Dish name
-          Text(
-            dish.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-
-          // Regional style
-          Text(
-            dish.regionalStyle,
-            style: const TextStyle(color: Colors.white60, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-
-          // Rarity badge + price
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: rarityColor.withAlpha(80),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '★ $rarityLabel',
-                  style: TextStyle(color: rarityColor, fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ),
-              if (dish.price != null) ...[
-                const SizedBox(width: 12),
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  '¥${dish.price}',
+                  dish.name,
                   style: const TextStyle(
-                    color: Colors.amber,
-                    fontSize: 18,
+                    color: Colors.white,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ],
-          ),
-
-          if (dish.confidence != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Confidence: ${(dish.confidence! * 100).toStringAsFixed(0)}%',
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection(String title, bool loading, String content) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.deepOrange, fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          if (loading)
-            Row(children: [
-              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.deepOrange)),
-              const SizedBox(width: 8),
-              Expanded(child: Text(content, style: const TextStyle(color: Colors.white60, fontSize: 14))),
-            ])
-          else
-            Text(content, style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.5)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecipeSection() {
-    if (_recipeLoading) {
-      return _buildAiSection('📜 Recipe', true, 'Generating recipe...', null);
-    }
-    if (_recipeError != null) {
-      return _buildAiSection('📜 Recipe', false, 'Error: $_recipeError', null);
-    }
-    if (_recipe == null) {
-      return _buildAiSection('📜 Recipe', false, 'No recipe generated', null);
-    }
-
-    final r = _recipe!;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('📜 ${r.dishName}', style: const TextStyle(color: Colors.deepOrange, fontSize: 16, fontWeight: FontWeight.bold)),
-          if (r.teaser.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(r.teaser, style: const TextStyle(color: Colors.amber, fontSize: 13, fontStyle: FontStyle.italic)),
-          ],
-          const SizedBox(height: 8),
-          Text('Region: ${r.region} • ${r.prefecture}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-          Text('Rarity: ${r.rarity}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-          if (r.flavorTags.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 4,
-              children: r.flavorTags.map((t) => Chip(
-                label: Text(t, style: const TextStyle(fontSize: 10, color: Colors.white)),
-                backgroundColor: Colors.deepOrange.withAlpha(80),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              )).toList(),
-            ),
-          ],
-          const Divider(color: Colors.white24, height: 20),
-
-          // Ingredients
-          const Text('Ingredients', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          ...r.ingredients.map((i) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text('• ${i.name} — ${i.amount}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          )),
-          const Divider(color: Colors.white24, height: 20),
-
-          // Steps
-          const Text('Steps', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          ...r.steps.asMap().entries.map((e) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 24, height: 24,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.deepOrange.withAlpha(80),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text('${e.key + 1}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(
+                  dish.regionalStyle,
+                  style: const TextStyle(color: Colors.white60, fontSize: 13),
                 ),
-                const SizedBox(width: 8),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 6),
+                Row(
                   children: [
-                    Text(e.value.name, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(e.value.description, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: rarityColor.withAlpha(60),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '★ $rarityLabel',
+                        style: TextStyle(
+                          color: rarityColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    if (dish.price != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '¥${dish.price}',
+                        style: const TextStyle(
+                          color: Colors.amber,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ],
-                )),
+                ),
               ],
             ),
-          )),
-
-          if (r.longDescription.isNotEmpty) ...[
-            const Divider(color: Colors.white24, height: 20),
-            Text(r.longDescription, style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.5)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAiSection(String title, bool loading, String status, String? success) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(20)),
-      ),
-      child: Row(
-        children: [
-          if (loading)
-            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.deepOrange))
-          else if (success != null)
-            const Icon(Icons.check_circle, color: Colors.green, size: 20)
-          else
-            const Icon(Icons.error_outline, color: Colors.red, size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.deepOrange, fontSize: 14, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text(success ?? status, style: const TextStyle(color: Colors.white60, fontSize: 12)),
-            ],
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVideoSection() {
-    if (_seedanceLoading) {
-      return _buildAiSection('🎬 Cooking Video (Seedance)', true, _seedanceStatus ?? 'Starting...', null);
-    }
-    if (_videoUrl == null) {
-      return _buildAiSection('🎬 Cooking Video (Seedance)', false, _seedanceStatus ?? 'No video', null);
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withAlpha(20)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('🎬 Cooking Video', style: TextStyle(color: Colors.deepOrange, fontSize: 14, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          if (_videoController != null && _videoController!.value.isInitialized)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: AspectRatio(
-                aspectRatio: _videoController!.value.aspectRatio,
-                child: VideoPlayer(_videoController!),
-              ),
-            )
-          else
-            const Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
-          const SizedBox(height: 8),
-          const Text('✅ Video ready', style: TextStyle(color: Colors.green, fontSize: 12)),
+          ),
         ],
       ),
     );
