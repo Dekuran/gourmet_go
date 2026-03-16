@@ -11,6 +11,7 @@ import 'overlays/camera_overlay.dart';
 import 'overlays/dish_reveal_overlay.dart';
 import 'overlays/ftue_dialogue_overlay.dart';
 import 'overlays/hud_overlay.dart';
+import 'overlays/menu_board_overlay.dart';
 import 'overlays/shop_overlay.dart';
 import 'screens/api_test_screen.dart';
 
@@ -120,7 +121,7 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
           GameOverlay.hud.name: (context, game) =>
               HudOverlay(game: game),
           GameOverlay.menuBoard.name: (context, game) =>
-              _placeholder('Menu Board'),
+              MenuBoardOverlay(game: game),
           GameOverlay.daySummary.name: (context, game) =>
               _placeholder('Day Summary'),
           GameOverlay.upgrade.name: (context, game) =>

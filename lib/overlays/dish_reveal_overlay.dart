@@ -304,6 +304,7 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
                 _stepVideoUrls[index] = url;
                 _stepVideoLoading[index] = false;
               });
+              _persistDishArtifacts();
               _initStepVideoController(index, url);
               _log.logSuccess('DishReveal', 'Seedance[$index]', url);
             }
@@ -360,6 +361,7 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
                 _glbUrl = url;
                 _tripoLoading = false;
               });
+              _persistDishArtifacts();
               _log.logSuccess('DishReveal', '3D model', url);
               _audio.playSfx(GameSfx.dishCardReveal);
               _autoScroll();
@@ -389,6 +391,36 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
   }
 
   bool get _canContinue => !_recipeLoading;
+
+  void _persistDishArtifacts() {
+    final dish = _dish;
+    if (dish == null) return;
+
+    final completedUrls = _stepVideoUrls.whereType<String>().toList(growable: false);
+    final completedLabels = <String>[];
+    for (var i = 0; i < _stepVideoUrls.length; i++) {
+      if (_stepVideoUrls[i] != null) {
+        completedLabels.add(_stepLabels[i]);
+      }
+    }
+
+    final updatedDish = dish.copyWith(
+      glbUrl: _glbUrl ?? dish.glbUrl,
+      recipeVideoUrls: completedUrls,
+      recipeStepLabels: completedLabels,
+      recipeIngredients: _recipe?.ingredients.map((i) => i.name).toList() ??
+          dish.recipeIngredients,
+      recipeSummary: _recipe?.teaser.isNotEmpty == true
+          ? _recipe!.teaser
+          : (_description.isNotEmpty ? _description : dish.recipeSummary),
+    );
+
+    _dish = updatedDish;
+    FtueSharedState.instance.lastDish = updatedDish;
+    ref
+        .read(menuProvider.notifier)
+        .updateDish(dish.varietyId, (_) => updatedDish);
+  }
 
   void _continueToKitchen() async {
     final isFirstLaunch = await FtueService.instance.isFirstLaunch();

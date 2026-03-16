@@ -41,6 +41,21 @@ from pathlib import Path
 from collections import Counter, deque
 
 
+DEFAULT_EXCLUDED_FILES = {
+    "kitchen_bg.png",
+    "speech_bubble.png",
+}
+
+
+def should_process_file(path: Path) -> bool:
+    """Return True when a sprite should have its background removed."""
+    if path.suffix.lower() != ".png":
+        return False
+    if path.name in DEFAULT_EXCLUDED_FILES:
+        return False
+    return True
+
+
 def remove_bg_rembg(input_path: Path, output_path: Path, model: str, alpha_matting: bool):
     """Remove background using rembg (AI model)."""
     try:
@@ -116,13 +131,27 @@ def remove_bg_pil(input_path: Path, output_path: Path):
                 if a > 0:
                     border_samples.append((r, g, b))
 
-    if not border_samples:
-        print("  Warning: no opaque border pixels found")
+    opaque_pixels: list[tuple[int, int, int]] = []
+    for y in range(h):
+        for x in range(w):
+            pixel = px[x, y]
+            if not isinstance(pixel, tuple) or len(pixel) < 4:
+                continue
+            r, g, b, a = pixel[:4]
+            if a > 0:
+                opaque_pixels.append((r, g, b))
+
+    if not opaque_pixels:
+        print("  Warning: no opaque pixels found")
         img.save(str(output_path))
         return
 
-    bg_rgb = Counter(border_samples).most_common(1)[0][0]
-    print(f"  Detected background: RGB{bg_rgb}")
+    if border_samples:
+        bg_rgb = Counter(border_samples).most_common(1)[0][0]
+        print(f"  Detected border-connected background: RGB{bg_rgb}")
+    else:
+        bg_rgb = Counter(opaque_pixels).most_common(1)[0][0]
+        print(f"  Detected dominant interior background: RGB{bg_rgb}")
 
     is_dark_bg = sum(bg_rgb) < 96
     tolerance = 110 if is_dark_bg else 80
@@ -131,7 +160,7 @@ def remove_bg_pil(input_path: Path, output_path: Path):
     def dist(rgb: tuple[int, int, int]) -> int:
         return abs(rgb[0] - bg_rgb[0]) + abs(rgb[1] - bg_rgb[1]) + abs(rgb[2] - bg_rgb[2])
 
-    # Flood-fill from border
+    # Flood-fill from border when an opaque border exists.
     visited = [[False] * h for _ in range(w)]
     queue: deque[tuple[int, int]] = deque()
 
@@ -144,12 +173,13 @@ def remove_bg_pil(input_path: Path, output_path: Path):
             visited[x][y] = True
             queue.append((x, y))
 
-    for x in range(w):
-        add_seed(x, 0)
-        add_seed(x, h - 1)
-    for y in range(h):
-        add_seed(0, y)
-        add_seed(w - 1, y)
+    if border_samples:
+        for x in range(w):
+            add_seed(x, 0)
+            add_seed(x, h - 1)
+        for y in range(h):
+            add_seed(0, y)
+            add_seed(w - 1, y)
 
     while queue:
         x, y = queue.popleft()
@@ -162,6 +192,49 @@ def remove_bg_pil(input_path: Path, output_path: Path):
                 if a == 0 or dist((r, g, b)) <= tolerance:
                     visited[nx][ny] = True
                     queue.append((nx, ny))
+
+    # If the background is disconnected from the border, mark large dominant
+    # background-color regions in the interior while preserving smaller details.
+    if not border_samples:
+        matching_pixels = sum(1 for rgb in opaque_pixels if dist(rgb) <= tolerance)
+        min_region_size = max(2000, int(matching_pixels * 0.02))
+        print(f"  Searching for disconnected background regions ≥ {min_region_size} pixels")
+
+        region_seen = [[False] * h for _ in range(w)]
+        for y in range(h):
+            for x in range(w):
+                if region_seen[x][y] or visited[x][y]:
+                    continue
+                pixel = px[x, y]
+                if not isinstance(pixel, tuple) or len(pixel) < 4:
+                    continue
+                r, g, b, a = pixel[:4]
+                if a == 0 or dist((r, g, b)) > tolerance:
+                    continue
+
+                region: list[tuple[int, int]] = []
+                region_queue: deque[tuple[int, int]] = deque([(x, y)])
+                region_seen[x][y] = True
+
+                touches_edge = False
+                while region_queue:
+                    cx, cy = region_queue.popleft()
+                    region.append((cx, cy))
+                    if cx in (0, w - 1) or cy in (0, h - 1):
+                        touches_edge = True
+                    for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                        if 0 <= nx < w and 0 <= ny < h and not region_seen[nx][ny]:
+                            neighbor = px[nx, ny]
+                            if not isinstance(neighbor, tuple) or len(neighbor) < 4:
+                                continue
+                            nr, ng, nb, na = neighbor[:4]
+                            if na > 0 and dist((nr, ng, nb)) <= tolerance:
+                                region_seen[nx][ny] = True
+                                region_queue.append((nx, ny))
+
+                if len(region) >= min_region_size or touches_edge:
+                    for rx, ry in region:
+                        visited[rx][ry] = True
 
     # Apply transparency
     removed = 0
@@ -209,6 +282,29 @@ def batch_process(input_dir: Path, output_dir: Path, model: str, use_pil: bool, 
     print(f"Done! {len(files)} files processed → {output_dir}/")
 
 
+def batch_process_in_place(input_dir: Path, model: str, use_pil: bool, alpha_matting: bool):
+    """Process all eligible PNGs in-place within a directory."""
+    files = sorted(f for f in input_dir.glob("*.png") if should_process_file(f))
+
+    if not files:
+        print(f"No eligible PNG files found in {input_dir}")
+        return
+
+    print(f"Batch processing {len(files)} files in-place within {input_dir}/\n")
+
+    for f in files:
+        print(f"  updating {f.name}")
+        temp_output = f.parent / f"{f.stem}.tmp_nobg.png"
+        if use_pil:
+            remove_bg_pil(f, temp_output)
+        else:
+            remove_bg_rembg(f, temp_output, model, alpha_matting)
+        temp_output.replace(f)
+        print()
+
+    print(f"Done! {len(files)} files updated in-place within {input_dir}/")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Remove image backgrounds — AI (rembg) or PIL chroma-key",
@@ -237,6 +333,8 @@ Examples:
                         help="Use PIL chroma-key instead of rembg (no ML model needed)")
     parser.add_argument("--batch", action="store_true",
                         help="Batch process: input=dir, output=dir")
+    parser.add_argument("--in-place", action="store_true",
+                        help="Batch process a directory and overwrite eligible PNGs in place")
     args = parser.parse_args()
 
     if not args.input:
@@ -245,7 +343,9 @@ Examples:
 
     input_path = Path(args.input)
 
-    if args.batch:
+    if args.batch and args.in_place:
+        batch_process_in_place(input_path, args.model, args.pil, args.alpha_matting)
+    elif args.batch:
         output_dir = Path(args.output) if args.output else input_path / "nobg"
         batch_process(input_path, output_dir, args.model, args.pil, args.alpha_matting)
     else:

@@ -17,6 +17,10 @@ class Dish {
     this.price,
     this.playerPhotoPath,
     this.glbUrl,
+    this.recipeVideoUrls = const [],
+    this.recipeStepLabels = const [],
+    this.recipeIngredients = const [],
+    this.recipeSummary,
     this.regionalLore,
     this.confidence,
   });
@@ -46,6 +50,18 @@ class Dish {
   /// URL or local path to the 3D GLB model (from Tripo).
   /// Null until Tripo generation completes.
   final String? glbUrl;
+
+  /// Generated recipe / serving video URLs for this dish.
+  final List<String> recipeVideoUrls;
+
+  /// Display labels matching [recipeVideoUrls].
+  final List<String> recipeStepLabels;
+
+  /// Ingredient names captured from the generated recipe.
+  final List<String> recipeIngredients;
+
+  /// Short generated recipe summary or teaser.
+  final String? recipeSummary;
 
   /// Lore paragraph from the region where this dish originates.
   final String? regionalLore;
@@ -90,6 +106,10 @@ class Dish {
     int? price,
     String? playerPhotoPath,
     String? glbUrl,
+    List<String>? recipeVideoUrls,
+    List<String>? recipeStepLabels,
+    List<String>? recipeIngredients,
+    String? recipeSummary,
     String? regionalLore,
     double? confidence,
   }) {
@@ -102,6 +122,10 @@ class Dish {
       price: price ?? this.price,
       playerPhotoPath: playerPhotoPath ?? this.playerPhotoPath,
       glbUrl: glbUrl ?? this.glbUrl,
+      recipeVideoUrls: recipeVideoUrls ?? this.recipeVideoUrls,
+      recipeStepLabels: recipeStepLabels ?? this.recipeStepLabels,
+      recipeIngredients: recipeIngredients ?? this.recipeIngredients,
+      recipeSummary: recipeSummary ?? this.recipeSummary,
       regionalLore: regionalLore ?? this.regionalLore,
       confidence: confidence ?? this.confidence,
     );

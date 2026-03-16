@@ -78,7 +78,7 @@ class ShopOverlay extends ConsumerWidget {
                     'assets/${GameAssetService.sousChefExcited}',
                     height: 60,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (context, error, stackTrace) =>
                         const Text('🧑‍🍳', style: TextStyle(fontSize: 36)),
                   ),
                   const SizedBox(width: 12),
@@ -117,11 +117,25 @@ class ShopOverlay extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    '${menu.length} dish${menu.length == 1 ? '' : 'es'}',
-                    style: const TextStyle(
-                      color: Colors.white38,
-                      fontSize: 13,
+                   Text(
+                     '${menu.length} dish${menu.length == 1 ? '' : 'es'}',
+                     style: const TextStyle(
+                       color: Colors.white38,
+                       fontSize: 13,
+                     ),
+                   ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: menu.isEmpty
+                        ? null
+                        : () => game.showOverlay(GameOverlay.menuBoard),
+                    icon: const Icon(Icons.menu_book_rounded, size: 16),
+                    label: const Text('Open Menu'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFE8A0BF),
+                      side: BorderSide(
+                        color: const Color(0xFFE8A0BF).withAlpha(100),
+                      ),
                     ),
                   ),
                 ],
@@ -136,10 +150,13 @@ class ShopOverlay extends ConsumerWidget {
                   ? _buildEmptyMenu()
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: menu.length,
-                      itemBuilder: (context, index) =>
-                          _MenuDishCard(dish: menu[index]),
-                    ),
+                          itemCount: menu.length,
+                          itemBuilder: (context, index) =>
+                          _MenuDishCard(
+                            dish: menu[index],
+                            onInspect: () => game.showOverlay(GameOverlay.menuBoard),
+                          ),
+                     ),
             ),
 
             // ── Action buttons ──
@@ -295,9 +312,10 @@ class _StatChip extends StatelessWidget {
 }
 
 class _MenuDishCard extends StatelessWidget {
-  const _MenuDishCard({required this.dish});
+  const _MenuDishCard({required this.dish, required this.onInspect});
 
   final Dish dish;
+  final VoidCallback onInspect;
 
   @override
   Widget build(BuildContext context) {
@@ -332,8 +350,8 @@ class _MenuDishCard extends StatelessWidget {
             'assets/${GameAssetService.bowlSprite(dish.brothBase)}',
             width: 56,
             height: 56,
-            errorBuilder: (_, __, ___) =>
-                const Text('🍜', style: TextStyle(fontSize: 36)),
+              errorBuilder: (context, error, stackTrace) =>
+                 const Text('🍜', style: TextStyle(fontSize: 36)),
           ),
           const SizedBox(width: 14),
 
@@ -369,6 +387,11 @@ class _MenuDishCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: onInspect,
+            child: const Text('Inspect'),
+          ),
         ],
       ),
     );
