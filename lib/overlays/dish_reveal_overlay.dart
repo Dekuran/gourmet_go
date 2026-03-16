@@ -70,6 +70,7 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
   final List<String?> _stepVideoUrls = [null, null, null, null];
   final List<bool> _stepVideoLoading = [false, false, false, false];
   final List<String> _stepLabels = ['Step 1', 'Step 2', 'Step 3', 'Serving'];
+  int _currentVideoSlide = 0; // slideshow index (0-3)
   final List<VideoPlayerController?> _stepVideoControllers = [
     null,
     null,
@@ -238,7 +239,8 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
   /// Dreamy anime style suffix appended to every Seedance prompt.
   static const _animeStyle =
       ', dreamy anime aesthetic, soft pastel colours, warm golden lighting, '
-      'gentle bokeh, Studio Ghibli inspired food scene';
+      'gentle bokeh, Studio Ghibli inspired food scene, '
+      'no speech, no words, no text, no dialogue, only ambient sound effects';
 
   /// Generate 4 Seedance videos: 3 from recipe steps + 1 serving.
   void _generateStepVideos(Recipe recipe) {
@@ -270,12 +272,21 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
     }
   }
 
-  /// Ensures a Seedance prompt includes the dreamy anime style keywords.
-  /// If the prompt already mentions "anime" or "pastel", skip appending.
+  /// "No words" suffix for prompts that already have anime style but lack it.
+  static const _silenceClause =
+      ', no speech, no words, no text, no dialogue, only ambient sound effects';
+
+  /// Ensures a Seedance prompt includes the dreamy anime style keywords
+  /// AND the silence clause. Appends whichever is missing.
   String _ensureAnimeStyle(String prompt) {
     final lower = prompt.toLowerCase();
-    if (lower.contains('anime') || lower.contains('pastel')) return prompt;
-    return '$prompt$_animeStyle';
+    final hasAnime = lower.contains('anime') || lower.contains('pastel');
+    final hasSilence =
+        lower.contains('no speech') || lower.contains('no dialogue');
+
+    if (hasAnime && hasSilence) return prompt;
+    if (hasAnime && !hasSilence) return '$prompt$_silenceClause';
+    return '$prompt$_animeStyle'; // _animeStyle already includes silence clause
   }
 
   void _generateSingleVideo(int index, String prompt) {
@@ -918,10 +929,13 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
       return _buildFallbackVideoSection();
     }
 
+    final idx = _currentVideoSlide;
+    final videosReady = _stepVideoUrls.where((v) => v != null).length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section title
+        // Section title + counter
         Row(
           children: [
             const Text('🎬', style: TextStyle(fontSize: 18)),
@@ -936,31 +950,108 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
             ),
             const Spacer(),
             Text(
-              '${_stepVideoUrls.where((v) => v != null).length}/4 generated',
+              '$videosReady/4 generated',
               style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],
         ),
         const SizedBox(height: 10),
 
-        // Video grid: 2x2 on wide screens, vertical on narrow
-        if (isWide)
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: List.generate(4, (i) => _buildVideoTile(i, isWide)),
-          )
-        else
-          Column(
-            children: List.generate(
-              4,
-              (i) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildVideoTile(i, isWide),
-              ),
+        // ── Single large video tile (slideshow) ──
+        _buildVideoSlideTile(idx),
+        const SizedBox(height: 10),
+
+        // ── Navigation: ◀ dots ▶ ──
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Previous button
+            _slideNavButton(
+              icon: Icons.chevron_left_rounded,
+              enabled: idx > 0,
+              onTap: () => setState(() => _currentVideoSlide = idx - 1),
+            ),
+            const SizedBox(width: 12),
+            // Dot indicators
+            ...List.generate(4, (i) {
+              final isActive = i == idx;
+              final hasVideo = _stepVideoUrls[i] != null;
+              final isLoading = _stepVideoLoading[i];
+              return GestureDetector(
+                onTap: () => setState(() => _currentVideoSlide = i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isActive ? 24 : 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    color: isActive
+                        ? _mistyLavender
+                        : hasVideo
+                            ? Colors.green.withAlpha(120)
+                            : isLoading
+                                ? _softGold.withAlpha(80)
+                                : Colors.white.withAlpha(30),
+                    border: isActive
+                        ? Border.all(color: _mistyLavender.withAlpha(180))
+                        : null,
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(width: 12),
+            // Next button
+            _slideNavButton(
+              icon: Icons.chevron_right_rounded,
+              enabled: idx < 3,
+              onTap: () => setState(() => _currentVideoSlide = idx + 1),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Step label below dots
+        Center(
+          child: Text(
+            '${idx == 3 ? "🍜" : "${idx + 1}."} ${_stepLabels[idx]}',
+            style: TextStyle(
+              color: idx == 3 ? _warmPink : _mistyLavender,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
+        ),
       ],
+    );
+  }
+
+  Widget _slideNavButton({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: enabled
+              ? _mistyLavender.withAlpha(30)
+              : Colors.white.withAlpha(10),
+          border: Border.all(
+            color: enabled
+                ? _mistyLavender.withAlpha(80)
+                : Colors.white.withAlpha(15),
+          ),
+        ),
+        child: Icon(
+          icon,
+          color: enabled ? _mistyLavender : Colors.white24,
+          size: 22,
+        ),
+      ),
     );
   }
 
@@ -1012,144 +1103,129 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
     );
   }
 
-  Widget _buildVideoTile(int index, bool isWide) {
+  /// Builds a single large video tile for the current slideshow index.
+  Widget _buildVideoSlideTile(int index) {
     final url = _stepVideoUrls[index];
     final loading = _stepVideoLoading[index];
     final controller = _stepVideoControllers[index];
-    final label = _stepLabels[index];
     final isServing = index == 3;
 
-    final tileWidth = isWide
-        ? (MediaQuery.of(context).size.width - 64 - 12) / 2
-        : double.infinity;
-
-    return SizedBox(
-      width: isWide ? tileWidth : null,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Step label
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: isServing
-                      ? _warmPink.withAlpha(30)
-                      : _mistyLavender.withAlpha(30),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  isServing ? '🍜 $label' : '${index + 1}. $label',
-                  style: TextStyle(
-                    color: isServing ? _warmPink : _mistyLavender,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              if (loading)
-                const SizedBox(
-                  width: 12,
-                  height: 12,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: _mistyLavender,
-                  ),
-                )
-              else if (url != null)
-                const Icon(Icons.check_circle, color: Colors.green, size: 14),
-            ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0A0A),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: url != null
+                  ? Colors.green.withAlpha(60)
+                  : loading
+                      ? _mistyLavender.withAlpha(40)
+                      : Colors.white.withAlpha(15),
+              width: 1.5,
+            ),
           ),
-          const SizedBox(height: 6),
-          // Video area
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0A0A),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: url != null
-                        ? Colors.green.withAlpha(60)
-                        : loading
-                            ? _mistyLavender.withAlpha(40)
-                            : Colors.white.withAlpha(15),
-                    width: 1.5,
-                  ),
-                ),
-                child: controller != null && controller.value.isInitialized
-                    ? Stack(
-                        fit: StackFit.expand,
+          child: controller != null && controller.value.isInitialized
+              ? Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    VideoPlayer(controller),
+                    // Step indicator badge (top-left)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xD0000000),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isServing
+                                ? _warmPink.withAlpha(80)
+                                : _mistyLavender.withAlpha(80),
+                          ),
+                        ),
+                        child: Text(
+                          isServing
+                              ? '🍜 ${_stepLabels[index]}'
+                              : '${index + 1}. ${_stepLabels[index]}',
+                          style: TextStyle(
+                            color: isServing ? _warmPink : _mistyLavender,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Slide counter (top-right)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xD0000000),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${index + 1}/4',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : loading
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          VideoPlayer(controller),
-                          // Play/replay overlay
-                          Positioned(
-                            bottom: 4,
-                            right: 4,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.play_circle_fill,
-                                color: Colors.white54,
-                                size: 16,
-                              ),
+                          AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (context, child) => Opacity(
+                              opacity: 0.4 + 0.6 * _pulseAnim.value,
+                              child: child,
+                            ),
+                            child: Text(
+                              isServing ? '🍜' : '🔥',
+                              style: const TextStyle(fontSize: 36),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Generating ${_stepLabels[index]}...',
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 12,
                             ),
                           ),
                         ],
-                      )
-                    : loading
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                AnimatedBuilder(
-                                  animation: _pulseAnim,
-                                  builder: (context, child) => Opacity(
-                                    opacity: 0.4 + 0.6 * _pulseAnim.value,
-                                    child: child,
-                                  ),
-                                  child: Text(
-                                    isServing ? '🍜' : '🔥',
-                                    style: const TextStyle(fontSize: 28),
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'Generating...',
-                                  style: TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
+                      ),
+                    )
+                  : url == null && !loading
+                      ? Center(
+                          child: Text(
+                            'Waiting for recipe...',
+                            style: const TextStyle(
+                              color: Colors.white24,
+                              fontSize: 12,
                             ),
-                          )
-                        : url == null && !loading
-                            ? const Center(
-                                child: Text(
-                                  'Waiting for recipe...',
-                                  style: TextStyle(
-                                    color: Colors.white24,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-              ),
-            ),
-          ),
-        ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+        ),
       ),
     );
   }
