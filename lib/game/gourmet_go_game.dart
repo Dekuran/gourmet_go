@@ -30,6 +30,9 @@ enum GameOverlay {
   /// Heads-up display: cash, day, star rating.
   hud,
 
+  /// Shop / kitchen overlay — menu, service start, travel.
+  shop,
+
   /// Starter bowl picker (FTUE fallback when camera unavailable).
   starterPicker,
 

@@ -44,7 +44,7 @@ class ShopScene extends World with HasGameReference<GourmetGoGame> {
 
     developer.log('ShopScene: loaded', name: 'gourmet_go.scene');
 
-    // Show HUD overlay for the shop
-    game.showOverlay(GameOverlay.hud);
+    // Show the shop overlay (kitchen menu + actions)
+    game.showOverlay(GameOverlay.shop);
   }
 }
