@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -118,10 +119,17 @@ class GameAssetService {
 
   /// Load a Flame [Image] from a sprite path.
   ///
-  /// Uses Flame's image cache. The [assetPath] is relative to `assets/`.
+  /// The [assetPath] is relative to `assets/` (e.g. `sprites/kitchen_bg.png`).
+  /// We use [rootBundle] + [ui.decodeImageFromList] because Flame's built-in
+  /// `Flame.images.load()` prepends `assets/images/` which doesn't match our
+  /// sprite directory structure.
   Future<ui.Image?> loadFlameImage(String assetPath) async {
     try {
-      return await Flame.images.load(assetPath);
+      final data = await rootBundle.load('assets/$assetPath');
+      final bytes = data.buffer.asUint8List();
+      final completer = Completer<ui.Image>();
+      ui.decodeImageFromList(bytes, completer.complete);
+      return completer.future;
     } catch (e) {
       _log.logError('GameAsset', 'loadFlameImage', '$assetPath: $e');
       return null;
