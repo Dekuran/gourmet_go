@@ -11,6 +11,7 @@ import 'overlays/day_summary_overlay.dart';
 import 'overlays/dish_reveal_overlay.dart';
 import 'overlays/ftue_dialogue_overlay.dart';
 import 'overlays/hud_overlay.dart';
+import 'overlays/shop_overlay.dart';
 import 'overlays/map_info_overlay.dart';
 import 'overlays/upgrade_overlay.dart';
 import 'screens/api_test_screen.dart';
@@ -122,6 +123,8 @@ class _GourmetGoAppState extends State<GourmetGoApp> {
               _placeholder('Starter Picker'),
           GameOverlay.mapInfo.name: (context, game) =>
               MapInfoOverlay(game: game),
+          GameOverlay.shop.name: (context, game) =>
+              ShopOverlay(game: game),
           GameOverlay.hud.name: (context, game) =>
               HudOverlay(game: game),
           GameOverlay.menuBoard.name: (context, game) =>
