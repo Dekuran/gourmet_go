@@ -132,10 +132,13 @@ class GameAudioService {
           },
         }),
       );
-      if (response.statusCode == 200) {
+      final contentType = response.headers['content-type'] ?? '';
+      if (response.statusCode == 200 && contentType.contains('audio')) {
         await _voicePlayer.stop();
         await _voicePlayer.setVolume(_voiceVolume);
-        await _voicePlayer.play(BytesSource(response.bodyBytes));
+        await _voicePlayer.play(
+          BytesSource(response.bodyBytes, mimeType: 'audio/mpeg'),
+        );
         _voicePlayer.onPlayerComplete.first.then((_) => restoreMusicVolume());
         return true;
       }

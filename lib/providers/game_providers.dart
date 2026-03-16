@@ -82,6 +82,11 @@ final chefProvider = NotifierProvider<ChefNotifier, ChefProfile>(
   ChefNotifier.new,
 );
 
+/// Cook time in seconds for the current chef skill level.
+final chefCookTimeProvider = Provider<int>(
+  (ref) => ref.watch(chefProvider).cookTimeSeconds,
+);
+
 // ─── Menu (discovered dishes) ───
 
 /// Menu notifier — manages the player's discovered dish collection.
@@ -177,4 +182,21 @@ class RegionUnlockNotifier extends Notifier<Map<String, bool>> {
 final regionUnlockProvider =
     NotifierProvider<RegionUnlockNotifier, Map<String, bool>>(
   RegionUnlockNotifier.new,
+);
+
+// ─── Service Timer ───
+
+/// Remaining service day seconds, updated each second by
+/// [ServiceTimerComponent]. Watched by [HudOverlay] for the countdown display.
+class TimerSecondsNotifier extends Notifier<int> {
+  @override
+  int build() => 240;
+
+  void set(int seconds) => state = seconds;
+
+  void reset() => state = 240;
+}
+
+final timerSecondsProvider = NotifierProvider<TimerSecondsNotifier, int>(
+  TimerSecondsNotifier.new,
 );

@@ -113,6 +113,31 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
     );
   }
 
+  // ─── Region info ───
+
+  /// Region ID passed to the [GameOverlay.mapInfo] overlay.
+  String? pendingRegionId;
+
+  // ─── Convenience overlay helpers ───
+
+  void showHud() => showOverlay(GameOverlay.hud);
+  void hideHud() => hideOverlay(GameOverlay.hud);
+
+  void openCamera() => showOverlay(GameOverlay.camera);
+  void closeCamera() => hideOverlay(GameOverlay.camera);
+
+  void showMapInfo(String regionId) {
+    pendingRegionId = regionId;
+    showOverlay(GameOverlay.mapInfo);
+  }
+
+  void closeMapInfo() => hideOverlay(GameOverlay.mapInfo);
+
+  void showDaySummary() {
+    hideHud();
+    showOverlay(GameOverlay.daySummary);
+  }
+
   // ─── Overlay helpers ───
 
   /// Show a named overlay (type-safe via [GameOverlay] enum).

@@ -119,10 +119,8 @@ class GameAssetService {
 
   /// Load a Flame [Image] from a sprite path.
   ///
-  /// The [assetPath] is relative to `assets/` (e.g. `sprites/kitchen_bg.png`).
-  /// We use [rootBundle] + [ui.decodeImageFromList] because Flame's built-in
-  /// `Flame.images.load()` prepends `assets/images/` which doesn't match our
-  /// sprite directory structure.
+  /// Uses Flame's image cache. The [assetPath] is relative to
+  /// `assets/images/` (Flame's default prefix).
   Future<ui.Image?> loadFlameImage(String assetPath) async {
     try {
       final data = await rootBundle.load('assets/$assetPath');
