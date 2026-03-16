@@ -23,10 +23,15 @@ class RegionNode extends PositionComponent
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    // Convert normalised map position to screen coordinates.
+    // Convert normalised map position (0–1) to world-centred coordinates.
+    // Viewport is 960×540 centred at origin, so range is [-480,480] × [-270,270].
+    final viewW = game.camera.viewport.size.x;
+    final viewH = game.camera.viewport.size.y;
+    final halfW = viewW / 2;
+    final halfH = viewH / 2;
     position = Vector2(
-      region.mapPosition.dx * game.size.x - size.x / 2,
-      region.mapPosition.dy * game.size.y - size.y / 2,
+      region.mapPosition.dx * viewW - halfW - size.x / 2,
+      region.mapPosition.dy * viewH - halfH - size.y / 2,
     );
   }
 

@@ -10,15 +10,17 @@ import 'customer_entity.dart';
 /// Manages timed spawning of mechanical [CustomerEntity] instances.
 ///
 /// Spawns up to 8 customers per day, roughly every 30 seconds.
+///
+/// Layout: customers fill a 2-column grid on the LEFT side of the
+/// landscape viewport (960×540, origin at centre).
 class CustomerQueueComponent extends Component with RiverpodComponentMixin {
   CustomerQueueComponent({required this.game, required this.dispatcher});
 
   static const _spawnInterval = 30.0;
   static const _maxCustomers = 8;
-  static const _slotsPerRow = 4;
+  static const _slotsPerColumn = 4;
   static const _slotWidth = 85.0;
-  static const _slotStartX = 20.0;
-  static const _slotStartY = 60.0;
+  static const _slotHeight = 110.0;
 
   final GourmetGoGame game;
   final OrderDispatcher dispatcher;
@@ -56,12 +58,19 @@ class CustomerQueueComponent extends Component with RiverpodComponentMixin {
     _spawned++;
   }
 
+  /// Compute a grid position using world-centred coordinates.
+  ///
+  /// Two columns of 4 on the left side of the 960×540 viewport.
+  /// Column 1: x ≈ -420, Column 2: x ≈ -335
+  /// Rows start at y ≈ -180 (above centre).
   Vector2 _slotPosition(int index) {
-    final row = index ~/ _slotsPerRow;
-    final col = index % _slotsPerRow;
+    final col = index ~/ _slotsPerColumn;
+    final row = index % _slotsPerColumn;
+    const gridLeft = -420.0;
+    const gridTop = -180.0;
     return Vector2(
-      _slotStartX + col * _slotWidth,
-      _slotStartY + row * 120.0,
+      gridLeft + col * _slotWidth,
+      gridTop + row * _slotHeight,
     );
   }
 

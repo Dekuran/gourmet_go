@@ -25,24 +25,34 @@ class MapScene extends World
   Future<void> onLoad() async {
     developer.log('MapScene: loading', name: 'gourmet_go.scene');
 
+    final viewW = game.camera.viewport.size.x;
+    final viewH = game.camera.viewport.size.y;
+    final halfW = viewW / 2;
+    final halfH = viewH / 2;
+
     // Dark blue-gradient map background
     final bgPaint = Paint()..color = const Color(0xFF0A1628);
     add(RectangleComponent(
-      size: Vector2(390, 844),
-      position: Vector2(-195, -422),
+      size: Vector2(viewW, viewH),
+      position: Vector2(-halfW, -halfH),
       paint: bgPaint,
       priority: 0,
     ));
 
     // Add region markers
     for (final region in Region.all) {
-      final marker = _RegionMarker(region: region, gameRef: game);
+      final marker = _RegionMarker(
+        region: region,
+        gameRef: game,
+        viewW: viewW,
+        viewH: viewH,
+      );
       _markers[region.id] = marker;
       add(marker);
     }
 
     // Draw connecting paths between regions
-    _addConnections();
+    _addConnections(viewW, viewH);
 
     // Show HUD overlay
     game.showOverlay(GameOverlay.hud);
@@ -50,18 +60,21 @@ class MapScene extends World
     // Start map music
     await GameAudioService().playMapMusic();
 
-    developer.log('MapScene: loaded', name: 'gourmet_go.scene');
+    developer.log('MapScene: loaded (${viewW}x$viewH)',
+        name: 'gourmet_go.scene');
   }
 
-  void _addConnections() {
+  void _addConnections(double viewW, double viewH) {
+    final halfW = viewW / 2;
+    final halfH = viewH / 2;
     // Simple connection indicators between linked regions
     for (final region in Region.all) {
       for (final targetId in region.connectedTo) {
         final target = Region.byId(targetId);
-        final fromX = region.mapPosition.dx * 390 - 195;
-        final fromY = region.mapPosition.dy * 844 - 422;
-        final toX = target.mapPosition.dx * 390 - 195;
-        final toY = target.mapPosition.dy * 844 - 422;
+        final fromX = region.mapPosition.dx * viewW - halfW;
+        final fromY = region.mapPosition.dy * viewH - halfH;
+        final toX = target.mapPosition.dx * viewW - halfW;
+        final toY = target.mapPosition.dy * viewH - halfH;
 
         // Midpoint dot as a simple connection indicator
         final midX = (fromX + toX) / 2;
@@ -86,10 +99,17 @@ class MapScene extends World
 
 /// Tappable region marker on the Japan map.
 class _RegionMarker extends PositionComponent with TapCallbacks {
-  _RegionMarker({required this.region, required this.gameRef});
+  _RegionMarker({
+    required this.region,
+    required this.gameRef,
+    required this.viewW,
+    required this.viewH,
+  });
 
   final Region region;
   final GourmetGoGame gameRef;
+  final double viewW;
+  final double viewH;
   bool _unlocked = false;
 
   late CircleComponent _dot;
@@ -98,8 +118,10 @@ class _RegionMarker extends PositionComponent with TapCallbacks {
   @override
   Future<void> onLoad() async {
     // Position based on region's normalized map position
-    final x = region.mapPosition.dx * 390 - 195;
-    final y = region.mapPosition.dy * 844 - 422;
+    final halfW = viewW / 2;
+    final halfH = viewH / 2;
+    final x = region.mapPosition.dx * viewW - halfW;
+    final y = region.mapPosition.dy * viewH - halfH;
     position = Vector2(x, y);
     size = Vector2(60, 60);
     anchor = Anchor.center;

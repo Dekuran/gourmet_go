@@ -1,11 +1,14 @@
-import 'dart:ui';
+import 'dart:developer' as developer;
+import 'dart:ui' hide TextStyle;
 
 import 'package:flame/components.dart';
 import 'package:flame_behaviors/flame_behaviors.dart';
 import 'package:flame_riverpod/flame_riverpod.dart';
+import 'package:flutter/painting.dart' show TextStyle;
 
 import '../../../models/customer_order.dart';
 import '../../../providers/customer_queue_provider.dart';
+import '../../../services/game_asset_service.dart' as assets;
 import '../kitchen/order_dispatcher.dart';
 import '../kitchen/progress_bar_component.dart';
 import 'customer_state.dart';
@@ -14,7 +17,9 @@ import 'wait_behavior.dart';
 
 /// A mechanical customer: a dish order + patience countdown.
 ///
-/// No names or personality — purely a timer-driven order ticket.
+/// Uses actual customer sprites when available, with a coloured
+/// rectangle fallback. Speech bubble shows the order and is tappable
+/// to assign the order to the chef.
 class CustomerEntity extends PositionComponent
     with RiverpodComponentMixin, EntityMixin {
   CustomerEntity({
@@ -22,7 +27,7 @@ class CustomerEntity extends PositionComponent
     required this.dispatcher,
     required Vector2 slotPosition,
   })  : customerState = CustomerState.waiting,
-        super(position: slotPosition, size: Vector2(80, 100));
+        super(position: slotPosition, size: Vector2(70, 90));
 
   final CustomerOrder order;
   final OrderDispatcher dispatcher;
@@ -35,11 +40,41 @@ class CustomerEntity extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // Placeholder customer body (grey rectangle).
-    final body = RectangleComponent(
-      size: size,
-      paint: Paint()..color = const Color(0xFF7B8FA1),
+    // Try loading customer sprite.
+    final customerIndex = order.hashCode % 6;
+    final spritePath = assets.GameAssetService.customerSprite(
+      customerIndex,
+      assets.CustomerState.waiting,
     );
+    final img = await assets.GameAssetService().loadFlameImage(spritePath);
+
+    if (img != null) {
+      add(SpriteComponent(
+        sprite: Sprite(img),
+        size: size,
+      ));
+      developer.log('CustomerEntity: sprite loaded ($spritePath)',
+          name: 'gourmet_go.customer');
+    } else {
+      // Fallback coloured rectangle.
+      developer.log('CustomerEntity: sprite failed, using fallback',
+          name: 'gourmet_go.customer');
+      final body = RectangleComponent(
+        size: size,
+        paint: Paint()..color = const Color(0xFF7B8FA1),
+      );
+      add(body);
+
+      // Customer emoji indicator.
+      add(TextComponent(
+        text: '🧑',
+        position: Vector2(size.x / 2, size.y / 2 - 8),
+        anchor: Anchor.center,
+        textRenderer: TextPaint(
+          style: TextStyle(fontSize: 20),
+        ),
+      ));
+    }
 
     // Patience bar at bottom of body.
     _patienceBar = ProgressBarComponent(
@@ -52,7 +87,7 @@ class CustomerEntity extends PositionComponent
     final bubble = SpeechBubbleComponent(order: order, customer: this);
     _waitBehavior = WaitBehavior();
 
-    await addAll([body, _patienceBar, bubble, _waitBehavior]);
+    await addAll([_patienceBar, bubble, _waitBehavior]);
   }
 
   void updatePatienceBar(double ratio) => _patienceBar.progress = ratio;

@@ -19,6 +19,7 @@ class HudOverlay extends ConsumerWidget {
     final cash = ref.watch(cashProvider);
     final day = ref.watch(dayProvider);
     final phase = ref.watch(gamePhaseProvider);
+    final timerSeconds = ref.watch(timerSecondsProvider);
 
     return SafeArea(
       child: Padding(
@@ -40,6 +41,19 @@ class HudOverlay extends ConsumerWidget {
               color: Colors.white70,
             ),
             const SizedBox(width: 8),
+
+            // ── Service timer (only during shop/service phase) ──
+            if (phase == GamePhase.shop)
+              _HudChip(
+                icon: '⏱️',
+                label: _formatTimer(timerSeconds),
+                color: timerSeconds <= 30
+                    ? Colors.redAccent
+                    : timerSeconds <= 60
+                        ? Colors.orange
+                        : Colors.greenAccent,
+              ),
+            if (phase == GamePhase.shop) const SizedBox(width: 8),
 
             // ── Phase indicator ──
             _HudChip(
@@ -89,6 +103,12 @@ class HudOverlay extends ConsumerWidget {
         GamePhase.daySummary => 'Summary',
         GamePhase.upgrade => 'Upgrade',
       };
+
+  String _formatTimer(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
 }
 
 class _HudChip extends StatelessWidget {

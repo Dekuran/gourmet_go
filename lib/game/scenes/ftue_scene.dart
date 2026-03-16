@@ -23,6 +23,11 @@ class FtueScene extends World with HasGameReference<GourmetGoGame> {
   Future<void> onLoad() async {
     developer.log('FtueScene: loading', name: 'gourmet_go.scene');
 
+    final viewW = game.camera.viewport.size.x;
+    final viewH = game.camera.viewport.size.y;
+    final halfW = viewW / 2;
+    final halfH = viewH / 2;
+
     // Kitchen background — fills the viewport
     final bgImage = await GameAssetService().loadFlameImage(
       GameAssetService.kitchenBg,
@@ -31,8 +36,8 @@ class FtueScene extends World with HasGameReference<GourmetGoGame> {
     if (bgImage != null) {
       _kitchenBg = SpriteComponent(
         sprite: Sprite(bgImage),
-        size: Vector2(390, 844),
-        position: Vector2(-195, -422), // centred in camera
+        size: Vector2(viewW, viewH),
+        position: Vector2(-halfW, -halfH),
       );
       add(_kitchenBg);
     }
@@ -40,15 +45,15 @@ class FtueScene extends World with HasGameReference<GourmetGoGame> {
     // Dark overlay — starts at 85% opacity, fades during dialogue
     final darkPaint = Paint()..color = const Color(0xD9000000); // ~85%
     _darkness = RectangleComponent(
-      size: Vector2(390, 844),
-      position: Vector2(-195, -422),
+      size: Vector2(viewW, viewH),
+      position: Vector2(-halfW, -halfH),
       paint: darkPaint,
       priority: 10,
     );
     add(_darkness);
 
     developer.log(
-      'FtueScene: loaded, showing overlay',
+      'FtueScene: loaded (${viewW}x$viewH), showing overlay',
       name: 'gourmet_go.scene',
     );
 

@@ -63,8 +63,8 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
   GourmetGoGame()
       : super(
           camera: CameraComponent.withFixedResolution(
-            width: 390,
-            height: 844,
+            width: 960,
+            height: 540,
           ),
         );
 
@@ -78,7 +78,7 @@ class GourmetGoGame extends FlameGame with RiverpodGameMixin {
   Future<void> onLoad() async {
     await super.onLoad();
     developer.log(
-      'GourmetGoGame loaded — viewport 390×844, Riverpod bridged',
+      'GourmetGoGame loaded — viewport 960×540 (landscape), Riverpod bridged',
       name: 'gourmet_go.game',
     );
 
