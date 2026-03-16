@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game/gourmet_go_game.dart';
+import '../game/worlds/map_world.dart';
+import '../game/worlds/shop_world.dart';
 import '../models/dish.dart';
 import '../providers/game_providers.dart';
 import '../services/game_asset_service.dart';
@@ -166,13 +168,13 @@ class ShopOverlay extends ConsumerWidget {
                 children: [
                   // Start service day
                   SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: menu.isEmpty ? null : () {
-                        // TODO: Start service day
-                        GameAudioService().playSfx(GameSfx.doorOpen);
-                      },
+                   width: double.infinity,
+                   height: 52,
+                   child: ElevatedButton(
+                     onPressed: menu.isEmpty ? null : () {
+                       GameAudioService().playSfx(GameSfx.doorOpen);
+                       game.switchScene(ShopWorld(game: game), 'service');
+                     },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFE8A0BF),
                         foregroundColor: const Color(0xFF3D2B1F),
@@ -201,7 +203,7 @@ class ShopOverlay extends ConsumerWidget {
                           child: OutlinedButton.icon(
                             onPressed: () {
                               GameAudioService().playSfx(GameSfx.mapTap);
-                              // TODO: Navigate to map
+                              game.switchScene(MapWorld(game: game), 'map');
                             },
                             icon: const Text('🗾', style: TextStyle(fontSize: 16)),
                             label: const Text('Travel'),
