@@ -235,32 +235,47 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
     }
   }
 
+  /// Dreamy anime style suffix appended to every Seedance prompt.
+  static const _animeStyle =
+      ', dreamy anime aesthetic, soft pastel colours, warm golden lighting, '
+      'gentle bokeh, Studio Ghibli inspired food scene';
+
   /// Generate 4 Seedance videos: 3 from recipe steps + 1 serving.
   void _generateStepVideos(Recipe recipe) {
     // Collect all 4 prompts
     final prompts = <String>[];
     for (final step in recipe.steps.take(3)) {
-      prompts.add(step.seedancePrompt);
+      prompts.add(_ensureAnimeStyle(step.seedancePrompt));
     }
     // Pad with generic prompts if fewer than 3 steps
     while (prompts.length < 3) {
       prompts.add(
-        'Japanese chef cooking ${recipe.dishName}, cinematic food documentary, '
-        'warm lighting, close-up shots',
+        'Japanese chef cooking ${recipe.dishName}$_animeStyle, '
+        'close-up shots',
       );
     }
     // 4th video: serving prompt
     prompts.add(
-      recipe.servingVideoPrompt.isNotEmpty
-          ? recipe.servingVideoPrompt
-          : 'A steaming bowl of ${recipe.dishName} being served on a wooden counter, '
-              'cinematic food documentary style, warm ambient lighting',
+      _ensureAnimeStyle(
+        recipe.servingVideoPrompt.isNotEmpty
+            ? recipe.servingVideoPrompt
+            : 'A steaming bowl of ${recipe.dishName} being served on a wooden counter'
+                '$_animeStyle',
+      ),
     );
 
     // Launch all 4 generations in parallel
     for (int i = 0; i < 4; i++) {
       _generateSingleVideo(i, prompts[i]);
     }
+  }
+
+  /// Ensures a Seedance prompt includes the dreamy anime style keywords.
+  /// If the prompt already mentions "anime" or "pastel", skip appending.
+  String _ensureAnimeStyle(String prompt) {
+    final lower = prompt.toLowerCase();
+    if (lower.contains('anime') || lower.contains('pastel')) return prompt;
+    return '$prompt$_animeStyle';
   }
 
   void _generateSingleVideo(int index, String prompt) {

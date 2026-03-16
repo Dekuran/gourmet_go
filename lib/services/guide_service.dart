@@ -34,14 +34,14 @@ No markdown, no backticks, no preamble. Raw JSON only matching this exact schema
     {"name": "", "amount": ""}
   ],
   "steps": [
-    {"name": "step title", "description": "brief action", "seedance_prompt": "cinematic cooking video prompt for this step"},
-    {"name": "step title", "description": "brief action", "seedance_prompt": "cinematic cooking video prompt for this step"},
-    {"name": "step title", "description": "brief action", "seedance_prompt": "cinematic cooking video prompt for this step"}
+    {"name": "step title", "description": "brief action", "seedance_prompt": "dreamy anime aesthetic cooking video prompt for this step, soft pastel colours, warm golden lighting"},
+    {"name": "step title", "description": "brief action", "seedance_prompt": "dreamy anime aesthetic cooking video prompt for this step, soft pastel colours, warm golden lighting"},
+    {"name": "step title", "description": "brief action", "seedance_prompt": "dreamy anime aesthetic cooking video prompt for this step, soft pastel colours, warm golden lighting"}
   ],
-  "serving_video_prompt": "cinematic video of the finished bowl being served on a restaurant counter",
+  "serving_video_prompt": "dreamy anime aesthetic video of the finished bowl being served on a restaurant counter, soft pastel colours, warm golden lighting",
   "tripo_prompt": "food photography for 3D generation, white background"
 }
-IMPORTANT: Exactly 3 ingredients. Exactly 3 steps. Each step must have a seedance_prompt describing a cinematic food video of that cooking action.
+IMPORTANT: Exactly 3 ingredients. Exactly 3 steps. Each step must have a seedance_prompt describing a dreamy anime aesthetic food video of that cooking action with soft pastel colours and warm golden lighting.
 Use only these flavor tags: fermented|regional|fish|pork|rich|delicate|street_food|umami|pressed|smoky|crispy|rare|photogenic|comfort|seasonal''';
 
   /// Prompt that asks Claude to return structured identification JSON
