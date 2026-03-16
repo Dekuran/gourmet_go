@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import '../services/ftue_service.dart';
 import 'scenes/ftue_scene.dart';
-import 'scenes/map_scene.dart';
 import 'scenes/shop_scene.dart';
 
 /// All overlay identifiers used by the Flame [GameWidget].

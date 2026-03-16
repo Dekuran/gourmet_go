@@ -8,8 +8,8 @@ import '../gourmet_go_game.dart';
 
 /// Shop / kitchen scene — the restaurant interior where service happens.
 ///
-/// Shows the kitchen background with warm lighting (no darkness overlay).
-/// The HUD overlay is shown on top for cash, day, and phase display.
+/// Shows the kitchen background with warm lighting.
+/// The shop overlay (Flutter) is shown on top for the full kitchen UI.
 ///
 /// This is the scene used after the FTUE completes and the player
 /// enters the restaurant with their first dish on the menu.
@@ -17,6 +17,12 @@ class ShopScene extends World with HasGameReference<GourmetGoGame> {
   @override
   Future<void> onLoad() async {
     developer.log('ShopScene: loading', name: 'gourmet_go.scene');
+
+    // Use the game camera's viewport size for proper scaling
+    final viewW = game.camera.viewport.size.x;
+    final viewH = game.camera.viewport.size.y;
+    final halfW = viewW / 2;
+    final halfH = viewH / 2;
 
     // Kitchen background — fills the viewport
     final bgImage = await GameAssetService().loadFlameImage(
@@ -26,23 +32,24 @@ class ShopScene extends World with HasGameReference<GourmetGoGame> {
     if (bgImage != null) {
       final kitchenBg = SpriteComponent(
         sprite: Sprite(bgImage),
-        size: Vector2(390, 844),
-        position: Vector2(-195, -422), // centred in camera
+        size: Vector2(viewW, viewH),
+        position: Vector2(-halfW, -halfH), // centred in camera
       );
       add(kitchenBg);
     }
 
     // Warm ambient tint — slight orange glow for the shop atmosphere
     final warmTint = Paint()..color = const Color(0x15FF6600); // ~8% orange
-    final tintOverlay = RectangleComponent(
-      size: Vector2(390, 844),
-      position: Vector2(-195, -422),
+    final tint = RectangleComponent(
+      size: Vector2(viewW, viewH),
+      position: Vector2(-halfW, -halfH),
       paint: warmTint,
       priority: 5,
     );
-    add(tintOverlay);
+    add(tint);
 
-    developer.log('ShopScene: loaded', name: 'gourmet_go.scene');
+    developer.log('ShopScene: loaded (${viewW}x$viewH)',
+        name: 'gourmet_go.scene');
 
     // Show the shop overlay (kitchen menu + actions)
     game.showOverlay(GameOverlay.shop);
