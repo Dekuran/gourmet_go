@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
 import '../game/gourmet_go_game.dart';
-import '../game/scenes/ftue_scene.dart';
+import '../game/scenes/shop_scene.dart';
 import '../models/dish.dart';
 import '../models/recipe.dart';
 import '../providers/game_providers.dart';
@@ -335,10 +335,9 @@ class _DishRevealOverlayState extends ConsumerState<DishRevealOverlay>
     if (mounted) {
       _audio.playSfx(GameSfx.cashDing);
       widget.game.hideOverlay(GameOverlay.dishReveal);
-      // Go to kitchen scene (restaurant) — this is where the game loop runs.
-      // The FtueScene shows the kitchen background. We show the HUD overlay.
-      widget.game.switchScene(FtueScene(), 'kitchen');
-      widget.game.showOverlay(GameOverlay.hud);
+      // Go to shop scene (restaurant kitchen) — this is where the game loop runs.
+      // ShopScene shows the kitchen background with warm lighting + HUD overlay.
+      widget.game.switchScene(ShopScene(), 'shop');
       ref.read(gamePhaseProvider.notifier).set(GamePhase.shop);
     }
   }

@@ -141,10 +141,26 @@ class _CameraOverlayState extends ConsumerState<CameraOverlay> {
         _ => 'kanto',
       };
 
+  // Dreamy anime pastel palette
+  static const _warmPink = Color(0xFFE8A0BF);     // soft cherry blossom
+  static const _softGold = Color(0xFFD4A574);      // warm golden miso
+  static const _mistyLavender = Color(0xFFB8A9C9); // twilight lavender
+  static const _deepWarm = Color(0xFF3D2B1F);      // dark rich wood
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withAlpha(220),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xF01A0A05), // dark kitchen top
+            Color(0xF02D1508), // warm brown mid
+            Color(0xF01A0A05), // dark kitchen bottom
+          ],
+        ),
+      ),
       child: SafeArea(
         child: _processing ? _buildProcessing() : _buildChooser(),
       ),
@@ -156,20 +172,21 @@ class _CameraOverlayState extends ConsumerState<CameraOverlay> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(color: Colors.deepOrange),
+          const CircularProgressIndicator(
+            color: _warmPink,
+            strokeWidth: 3,
+          ),
           const SizedBox(height: 20),
-          Text(
-            'Identifying your ramen...',
+          const Text(
+            'The Master is studying your bowl...',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 16,
+              fontStyle: FontStyle.italic,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '🍜',
-            style: TextStyle(fontSize: 40),
-          ),
+          const SizedBox(height: 12),
+          const Text('🍜', style: TextStyle(fontSize: 48)),
         ],
       ),
     );
@@ -177,70 +194,101 @@ class _CameraOverlayState extends ConsumerState<CameraOverlay> {
 
   Widget _buildChooser() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.camera_alt_outlined,
-            color: Colors.deepOrange,
-            size: 64,
+          // Decorative top
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const RadialGradient(
+                colors: [
+                  Color(0x40E8A0BF),
+                  Color(0x10E8A0BF),
+                ],
+              ),
+              border: Border.all(
+                color: _warmPink.withAlpha(60),
+                width: 2,
+              ),
+            ),
+            child: const Center(
+              child: Text('📸', style: TextStyle(fontSize: 36)),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 20),
+
+          const Text(
             'Show me a bowl of ramen!',
             style: TextStyle(
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
-            'Take a photo, pick from gallery, or use our demo bowl.',
-            style: TextStyle(color: Colors.white60, fontSize: 14),
+            'Take a photo, pick from your gallery,\nor try our demo bowl.',
+            style: TextStyle(
+              color: Colors.white.withAlpha(150),
+              fontSize: 14,
+              height: 1.4,
+            ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
 
-          // Camera button
+          // Camera button — cherry blossom pink
           _ActionButton(
-            icon: Icons.camera_alt,
+            icon: Icons.camera_alt_rounded,
             label: 'Take Photo',
-            color: Colors.deepOrange,
+            color: _warmPink,
+            textColor: _deepWarm,
             onTap: () => _captureAndIdentify(PhotoMode.camera),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Gallery button
+          // Gallery button — warm golden miso
           _ActionButton(
-            icon: Icons.photo_library,
+            icon: Icons.photo_library_rounded,
             label: 'Choose from Gallery',
-            color: Colors.amber.shade700,
+            color: _softGold,
+            textColor: _deepWarm,
             onTap: () => _captureAndIdentify(PhotoMode.gallery),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Demo button
+          // Demo button — misty lavender
           _ActionButton(
-            icon: Icons.auto_awesome,
-            label: 'Use Demo Bowl 🍜',
-            color: Colors.teal,
+            icon: Icons.auto_awesome_rounded,
+            label: 'Use Demo Bowl  🍜',
+            color: _mistyLavender,
+            textColor: _deepWarm,
             onTap: () => _captureAndIdentify(PhotoMode.demo),
           ),
 
           if (_error != null) ...[
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.red.withAlpha(40),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0x30FF6B6B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0x40FF6B6B),
+                ),
               ),
               child: Text(
                 _error!,
-                style: const TextStyle(color: Colors.redAccent, fontSize: 14),
+                style: const TextStyle(
+                  color: Color(0xFFFFADAD),
+                  fontSize: 14,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -256,29 +304,40 @@ class _ActionButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.color,
+    required this.textColor,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final Color color;
+  final Color textColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 54,
       child: ElevatedButton.icon(
         onPressed: onTap,
-        icon: Icon(icon, size: 20),
-        label: Text(label, style: const TextStyle(fontSize: 16)),
+        icon: Icon(icon, size: 20, color: textColor),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: textColor,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
+          shadowColor: color.withAlpha(60),
         ),
       ),
     );
